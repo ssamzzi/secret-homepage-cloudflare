@@ -17,8 +17,10 @@ const loginPanel = document.getElementById("login-panel");
 const identityPanel = document.getElementById("identity-panel");
 const appContent = document.getElementById("app-content");
 let clocksStarted = false;
+let statusTimer = null;
 
 function logApi(label, payload) {
+  if (!apiLog) return;
   const serialized = JSON.stringify(payload, null, 2);
   const limited = serialized.length > 1200 ? `${serialized.slice(0, 1200)}\n... (truncated)` : serialized;
   apiLog.textContent = `${label}\n${limited}`;
@@ -49,8 +51,23 @@ function showAppStage(stage) {
 }
 
 function setStatus(message, isError = false) {
+  clearTimeout(statusTimer);
+  statusStrip.hidden = !message;
   statusStrip.textContent = message;
   statusStrip.classList.toggle("error", Boolean(isError));
+  if (message && !isError) {
+    statusTimer = setTimeout(() => {
+      statusStrip.hidden = true;
+      statusStrip.textContent = "";
+    }, 2200);
+  }
+}
+
+function clearStatus() {
+  clearTimeout(statusTimer);
+  statusStrip.hidden = true;
+  statusStrip.textContent = "";
+  statusStrip.classList.remove("error");
 }
 
 function renderClock(targetId, tz) {
@@ -89,27 +106,76 @@ function currentPersonLabel(userKey) {
   return state.session?.people?.[userKey] || userKey;
 }
 
+function activateTab(targetId) {
+  document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach((panel) => panel.classList.remove("active"));
+  document.querySelector(`[data-tab-target="${targetId}"]`)?.classList.add("active");
+  document.getElementById(targetId)?.classList.add("active");
+}
+
+async function loadBoardPage(page = 1) {
+  state.posts = await loadJson(`/api/v1/posts?page=${page}&perPage=6`);
+  renderBoard();
+}
+
+async function loadPersonPage(page = 1) {
+  state.person = await loadJson(`/api/v1/person/${state.session.currentUser}?page=${page}&perPage=6`);
+  renderPerson();
+}
+
+async function goToBoardPost(postId) {
+  const pageInfo = await loadJson(`/api/v1/posts/${postId}/page?perPage=6`);
+  await loadBoardPage(pageInfo.page || 1);
+  activateTab("board-panel");
+  requestAnimationFrame(() => {
+    document.getElementById(`post-${postId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function formatShortDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function resolveNotificationTarget(link) {
+  if (!link) return null;
+  if (link.includes("qna")) return { tab: "qna-panel" };
+  if (link.includes("bucket")) return { tab: "bucket-panel" };
+  if (link.includes("notifications")) return { tab: "notifications-panel" };
+  const postMatch = link.match(/post-(\d+)/);
+  if (postMatch) return { tab: "board-panel", postId: Number(postMatch[1]) };
+  if (link.includes("board")) return { tab: "board-panel" };
+  if (link.includes("person")) return { tab: "person-panel" };
+  return null;
+}
+
 function renderSession() {
   if (!state.session) return;
-  const { currentUser, people, mode, authenticated } = state.session;
-  const moodModePill = document.getElementById("mood-mode-pill");
-  if (moodModePill) moodModePill.textContent = mode.toUpperCase();
+  const { currentUser, people, authenticated } = state.session;
 
   if (!authenticated) {
     showAppStage("login");
-    setStatus("비밀번호를 입력하면 Cloudflare 버전에 들어갈 수 있습니다.");
+    clearStatus();
     return;
   }
 
   if (!currentUser) {
     showAppStage("identity");
-    setStatus("지원/구현 중 현재 사용자를 먼저 선택해주세요.");
+    clearStatus();
     return;
   }
 
   showAppStage("app");
-  sessionChip.textContent = `${people[currentUser]} · ${mode}`;
-  setStatus(`세션 확인 완료. 현재 사용자는 ${people[currentUser]}이고, Cloudflare pilot은 ${mode} 모드로 동작 중입니다.`);
+  sessionChip.textContent = people[currentUser];
+  clearStatus();
 }
 
 function renderHome() {
@@ -134,23 +200,24 @@ function renderHome() {
     .join("");
 
   document.getElementById("recent-list").innerHTML = recentPosts
-    .map((post) => `<article class="recent-item"><div class="row-between"><strong>${escapeHtml(people[post.owner])}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div><p>${escapeHtml(post.summary || "요약 없음")}</p></article>`)
+    .map((post) => `<article class="recent-item"><a class="recent-link" href="#" data-post-jump="${post.id}"><div class="row-between"><strong>${escapeHtml(people[post.owner])}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div><p>${escapeHtml(post.summary || "요약 없음")}</p></a></article>`)
     .join("");
 
   document.getElementById("calendar-title").textContent = `${calendar.currentMonth} 달력`;
   const weekNames = ["일", "월", "화", "수", "목", "금", "토"];
   document.getElementById("calendar-grid").innerHTML = weekNames.map((day) => `<div class="week-header">${day}</div>`).join("") + calendar.weeks.flat().map((cell) => {
     const posts = calendar.dateMap[cell.date] || [];
-    return `<div class="day-cell ${cell.inMonth ? "" : "dim"}"><p class="day-number">${cell.day}</p>${posts.map((post) => `<span class="mini-post">${escapeHtml(people[post.owner])}</span>`).join("")}</div>`;
+    return `<div class="day-cell ${cell.inMonth ? "" : "dim"}"><p class="day-number">${cell.day}</p>${posts.map((post) => `<a href="#" class="mini-post" data-post-jump="${post.id}">${escapeHtml(people[post.owner])}</a>`).join("")}</div>`;
   }).join("");
 
   bindMoodButtons();
   bindDdayForm();
+  bindPostJumpLinks();
 }
 
 function renderPerson() {
   if (!state.person) return;
-  const { ownerName, posts } = state.person;
+  const { ownerName, posts, pagination } = state.person;
   document.getElementById("person-title").textContent = `${ownerName} 페이지`;
   const recordDateInput = document.getElementById("person-record-date");
   if (recordDateInput && !recordDateInput.value) recordDateInput.value = new Date().toISOString().slice(0, 10);
@@ -159,9 +226,11 @@ function renderPerson() {
     ? posts.map((post) => `<article class="card person-post-card"><div class="row-between section-head compact"><strong>${escapeHtml(ownerName)} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<p class="post-content">${escapeHtml(post.content)}</p><details class="editor-box person-edit-box"><summary>수정</summary><form class="stack-form post-edit-form" data-post-id="${post.id}"><label><span>기록 날짜</span><input type="date" name="recordDate" value="${escapeHtml(post.recordDate)}" required /></label><label><span>내용</span><textarea name="content" rows="4" required>${escapeHtml(post.content)}</textarea></label><button type="submit">수정 저장</button></form></details><div class="post-actions"><button type="button" class="danger-btn" data-delete-post-id="${post.id}">삭제</button></div></article>`).join("")
     : '<article class="card"><p>아직 기록이 없어요.</p></article>';
 
+  document.getElementById("person-pagination").innerHTML = renderPagination(pagination, "person-prev", "person-next");
   bindPersonCreateForm();
   bindPostEditForms();
   bindPostDeleteButtons();
+  bindPersonPagination();
 }
 
 function renderComment(comment) {
@@ -172,9 +241,11 @@ function renderComment(comment) {
 function renderBoard() {
   if (!state.posts) return;
   const { items } = state.posts;
-  document.getElementById("board-grid").innerHTML = items.map((post) => `<article class="card post-card"><div class="row-between section-head compact"><strong>${escapeHtml(currentPersonLabel(post.owner))} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<div class="note"><p>${escapeHtml(post.content)}</p></div><section class="comments-box"><h3>댓글</h3><div class="comment-list">${post.comments.length ? post.comments.map(renderComment).join("") : '<p class="muted small">아직 댓글이 없어요.</p>'}</div><form class="comment-form" data-post-id="${post.id}"><textarea name="content" rows="3" placeholder="짧게 댓글 남기기"></textarea><button type="submit">댓글 남기기</button></form></section></article>`).join("");
+  document.getElementById("board-grid").innerHTML = items.map((post) => `<article class="card post-card" id="post-${post.id}"><div class="row-between section-head compact"><strong>${escapeHtml(currentPersonLabel(post.owner))} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<div class="note"><p>${escapeHtml(post.content)}</p></div><section class="comments-box"><h3>댓글</h3><div class="comment-list">${post.comments.length ? post.comments.map(renderComment).join("") : '<p class="muted small">아직 댓글이 없어요.</p>'}</div><form class="comment-form" data-post-id="${post.id}"><textarea name="content" rows="3" placeholder="짧게 댓글 남기기"></textarea><button type="submit">댓글 남기기</button></form></section></article>`).join("");
+  document.getElementById("board-pagination").innerHTML = renderPagination(state.posts.pagination, "board-prev", "board-next");
   bindCommentForms();
   bindCommentTools();
+  bindBoardPagination();
 }
 function renderBucket() {
   if (!state.bucket) return;
@@ -199,7 +270,7 @@ function renderQna() {
     ? state.qna.items.map((item) => {
       const canEditQuestion = item.author === currentUser;
       const canAnswer = item.target === currentUser || item.answeredBy === currentUser;
-      return `<article class="card qna-card"><p><strong>${escapeHtml(people[item.author])}</strong> → <strong>${escapeHtml(people[item.target])}</strong></p><p class="qna-question">Q. ${escapeHtml(item.question)}</p>${canEditQuestion ? `<details class="editor-box"><summary>질문 수정</summary><form class="stack-form qna-edit-form" data-question-id="${item.id}"><textarea name="question" rows="2" required>${escapeHtml(item.question)}</textarea><button type="submit">수정 저장</button></form></details><div class="post-actions"><button type="button" class="danger-btn" data-qna-delete-id="${item.id}">질문 삭제</button></div>` : ""}${item.answer ? `<p class="qna-answer">A. ${escapeHtml(item.answer)}</p>${canAnswer ? `<details class="editor-box"><summary>답변 수정</summary><form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" required>${escapeHtml(item.answer)}</textarea><button type="submit">답변 저장</button></form></details><div class="post-actions"><button type="button" class="danger-btn" data-answer-delete-id="${item.id}">답변 삭제</button></div>` : ""}` : `${item.target === currentUser ? `<form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" placeholder="답변을 적어주세요" required></textarea><button type="submit">답변 등록</button></form>` : '<p class="muted small">상대방의 답변을 기다리는 중...</p>'}`}</article>`;
+      return `<article class="card qna-card"><p><strong>${escapeHtml(people[item.author])}</strong> → <strong>${escapeHtml(people[item.target])}</strong></p><p class="qna-question">Q. ${escapeHtml(item.question)}</p>${canEditQuestion ? `<div class="qna-meta-row"><details class="editor-box"><summary>질문 수정</summary><form class="stack-form qna-edit-form" data-question-id="${item.id}"><textarea name="question" rows="2" required>${escapeHtml(item.question)}</textarea><button type="submit">수정 저장</button></form></details><button type="button" class="tiny-link-btn danger-link" data-qna-delete-id="${item.id}">질문 삭제</button></div>` : ""}${item.answer ? `<p class="qna-answer">A. ${escapeHtml(item.answer)}</p>${canAnswer ? `<div class="qna-meta-row"><details class="editor-box"><summary>답변 수정</summary><form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" required>${escapeHtml(item.answer)}</textarea><button type="submit">답변 저장</button></form></details><button type="button" class="tiny-link-btn danger-link" data-answer-delete-id="${item.id}">답변 삭제</button></div>` : ""}` : `${item.target === currentUser ? `<form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" placeholder="답변을 적어주세요" required></textarea><button type="submit">답변 등록</button></form>` : '<p class="muted small">상대방의 답변을 기다리는 중...</p>'}`}</article>`;
     }).join("")
     : '<article class="card"><p>아직 질문이 없어요.</p></article>';
 
@@ -218,15 +289,25 @@ function renderNotifications() {
             <article class="card notification-card">
               <div class="row-between section-head compact">
                 <strong>${escapeHtml(item.message)}</strong>
-                <span class="muted small">${escapeHtml(item.createdAt || "")}</span>
+                <span class="muted small">${escapeHtml(formatShortDateTime(item.createdAt || ""))}</span>
               </div>
               <p class="muted small">${escapeHtml(currentPersonLabel(item.actor))} → ${escapeHtml(currentPersonLabel(item.target))}</p>
-              ${item.link ? `<a class="tiny-link-btn" href="${escapeHtml(item.link)}">바로 가기</a>` : ""}
+              ${item.link ? `<button type="button" class="tiny-link-btn" data-notification-link="${escapeHtml(item.link)}">바로 가기</button>` : ""}
             </article>
           `
         )
         .join("")
     : '<article class="card"><p>알림이 없어요.</p></article>';
+  bindNotificationLinks();
+}
+
+function renderPagination(pagination, prevId, nextId) {
+  if (!pagination || pagination.totalPages <= 1) return "";
+  return `
+    <button type="button" class="small-btn" id="${prevId}" ${pagination.page <= 1 ? "disabled" : ""}>이전</button>
+    <span class="page-indicator">${pagination.page} / ${pagination.totalPages}</span>
+    <button type="button" class="small-btn" id="${nextId}" ${pagination.page >= pagination.totalPages ? "disabled" : ""}>다음</button>
+  `;
 }
 
 function bindTabs() {
@@ -360,10 +441,9 @@ function bindPersonCreateForm() {
       if (submitButton) submitButton.disabled = true;
       setStatus("기록 저장 중...");
       const formData = new FormData(form);
-      state.person = (await postForm(`/api/v1/person/${state.session.currentUser}/posts`, formData)).person;
-      state.posts = await loadJson("/api/v1/posts");
-      renderPerson();
-      renderBoard();
+      await postForm(`/api/v1/person/${state.session.currentUser}/posts`, formData);
+      await loadPersonPage(1);
+      await loadBoardPage(1);
       form.reset();
       if (filesInput) filesInput.value = "";
       document.getElementById("person-record-date").value = new Date().toISOString().slice(0, 10);
@@ -385,17 +465,16 @@ function bindPostEditForms() {
       try {
         if (submitButton) submitButton.disabled = true;
         setStatus("글 수정 중...");
-        state.person = (await postJson(`/api/v1/posts/${form.dataset.postId}/edit`, { recordDate: String(formData.get("recordDate") || ""), content: String(formData.get("content") || "").trim() })).person;
-        state.posts = await loadJson("/api/v1/posts");
-        renderPerson();
-        renderBoard();
+        await postJson(`/api/v1/posts/${form.dataset.postId}/edit`, { recordDate: String(formData.get("recordDate") || ""), content: String(formData.get("content") || "").trim() });
+        await loadPersonPage(state.person?.pagination?.page || 1);
+        await loadBoardPage(state.posts?.pagination?.page || 1);
         setStatus("글을 수정했습니다.");
       } catch (error) {
         setStatus(`글 수정 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
-    }, { once: true });
+    });
   });
 }
 
@@ -406,17 +485,16 @@ function bindPostDeleteButtons() {
       try {
         button.disabled = true;
         setStatus("글 삭제 중...");
-        state.person = (await postJson(`/api/v1/posts/${button.dataset.deletePostId}/delete`, {})).person;
-        state.posts = await loadJson("/api/v1/posts");
-        renderPerson();
-        renderBoard();
+        await postJson(`/api/v1/posts/${button.dataset.deletePostId}/delete`, {});
+        await loadPersonPage(state.person?.pagination?.page || 1);
+        await loadBoardPage(state.posts?.pagination?.page || 1);
         setStatus("글을 삭제했습니다.");
       } catch (error) {
         setStatus(`글 삭제 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         button.disabled = false;
       }
-    }, { once: true });
+    });
   });
 }
 
@@ -431,15 +509,15 @@ function bindCommentForms() {
       try {
         if (submitButton) submitButton.disabled = true;
         setStatus("댓글 저장 중...");
-        state.posts = (await postJson(`/api/v1/posts/${form.dataset.postId}/comments`, { content })).posts;
-        renderBoard();
+        await postJson(`/api/v1/posts/${form.dataset.postId}/comments`, { content });
+        await loadBoardPage(state.posts?.pagination?.page || 1);
         setStatus("댓글을 저장했습니다.");
       } catch (error) {
         setStatus(`댓글 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
-    }, { once: true });
+    });
   });
 }
 
@@ -448,14 +526,14 @@ function bindCommentTools() {
     button.addEventListener("click", () => {
       const form = document.querySelector(`.comment-edit-form[data-comment-id="${button.dataset.commentEditToggle}"]`);
       if (form) form.hidden = false;
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll("[data-comment-edit-cancel]").forEach((button) => {
     button.addEventListener("click", () => {
       const form = document.querySelector(`.comment-edit-form[data-comment-id="${button.dataset.commentEditCancel}"]`);
       if (form) form.hidden = true;
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll(".comment-edit-form").forEach((form) => {
@@ -466,15 +544,15 @@ function bindCommentTools() {
       try {
         if (submitButton) submitButton.disabled = true;
         setStatus("댓글 수정 중...");
-        state.posts = (await postJson(`/api/v1/comments/${form.dataset.commentId}/edit`, { content: String(formData.get("content") || "").trim() })).posts;
-        renderBoard();
+        await postJson(`/api/v1/comments/${form.dataset.commentId}/edit`, { content: String(formData.get("content") || "").trim() });
+        await loadBoardPage(state.posts?.pagination?.page || 1);
         setStatus("댓글을 수정했습니다.");
       } catch (error) {
         setStatus(`댓글 수정 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll("[data-comment-delete-id]").forEach((button) => {
@@ -483,15 +561,15 @@ function bindCommentTools() {
       try {
         button.disabled = true;
         setStatus("댓글 삭제 중...");
-        state.posts = (await postJson(`/api/v1/comments/${button.dataset.commentDeleteId}/delete`, {})).posts;
-        renderBoard();
+        await postJson(`/api/v1/comments/${button.dataset.commentDeleteId}/delete`, {});
+        await loadBoardPage(state.posts?.pagination?.page || 1);
         setStatus("댓글을 삭제했습니다.");
       } catch (error) {
         setStatus(`댓글 삭제 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         button.disabled = false;
       }
-    }, { once: true });
+    });
   });
 }
 
@@ -701,11 +779,62 @@ function bindBackupImportForm() {
   });
 }
 
+function bindPostJumpLinks() {
+  document.querySelectorAll("[data-post-jump]").forEach((element) => {
+    if (element.dataset.bound === "true") return;
+    element.dataset.bound = "true";
+    element.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await goToBoardPost(Number(element.dataset.postJump));
+    });
+  });
+}
+
+function bindNotificationLinks() {
+  document.querySelectorAll("[data-notification-link]").forEach((button) => {
+    if (button.dataset.bound === "true") return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", async () => {
+      const target = resolveNotificationTarget(button.dataset.notificationLink);
+      if (!target) return;
+      if (target.postId) {
+        await goToBoardPost(target.postId);
+        return;
+      }
+      activateTab(target.tab);
+      if (target.tab === "person-panel") {
+        await loadPersonPage(1);
+      }
+      if (target.tab === "board-panel") {
+        await loadBoardPage(1);
+      }
+    });
+  });
+}
+
+function bindPersonPagination() {
+  document.getElementById("person-prev")?.addEventListener("click", async () => {
+    await loadPersonPage((state.person?.pagination?.page || 1) - 1);
+  }, { once: true });
+  document.getElementById("person-next")?.addEventListener("click", async () => {
+    await loadPersonPage((state.person?.pagination?.page || 1) + 1);
+  }, { once: true });
+}
+
+function bindBoardPagination() {
+  document.getElementById("board-prev")?.addEventListener("click", async () => {
+    await loadBoardPage((state.posts?.pagination?.page || 1) - 1);
+  }, { once: true });
+  document.getElementById("board-next")?.addEventListener("click", async () => {
+    await loadBoardPage((state.posts?.pagination?.page || 1) + 1);
+  }, { once: true });
+}
+
 async function loadAppData() {
   const [home, person, posts, bucket, qna, notifications] = await Promise.all([
     loadJson("/api/v1/home"),
-    loadJson(`/api/v1/person/${state.session.currentUser}`),
-    loadJson("/api/v1/posts"),
+    loadJson(`/api/v1/person/${state.session.currentUser}?page=1&perPage=6`),
+    loadJson("/api/v1/posts?page=1&perPage=6"),
     loadJson("/api/v1/bucket"),
     loadJson("/api/v1/qna"),
     loadJson("/api/v1/notifications"),
@@ -738,18 +867,9 @@ async function boot() {
     startClocks();
   } catch (error) {
     setStatus(`초기 로딩 실패: ${error instanceof Error ? error.message : String(error)}`, true);
-    apiLog.textContent = statusStrip.textContent;
+    if (apiLog) apiLog.textContent = statusStrip.textContent;
   }
 }
-
-document.getElementById("health-check")?.addEventListener("click", async () => {
-  try {
-    const data = await loadJson("/api/v1/health");
-    setStatus(`헬스 체크 완료: ${data.status}`);
-  } catch (error) {
-    setStatus(`헬스 체크 실패: ${error instanceof Error ? error.message : String(error)}`, true);
-  }
-});
 
 bindTabs();
 boot();

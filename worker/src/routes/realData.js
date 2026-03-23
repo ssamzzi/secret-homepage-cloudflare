@@ -201,6 +201,26 @@ export async function fetchPostsData(env, { page = 1, perPage = 6 } = {}) {
   return { items: posts.map((post) => normalizePostItem(post, commentsMap, imagesMap, now)), pagination: { page: safePage, perPage: safePerPage, totalPages, totalItems } };
 }
 
+export async function fetchPostPageById(env, { postId, perPage = 6 } = {}) {
+  getRequiredSupabaseEnv(env);
+  const safePostId = Number(postId);
+  const safePerPage = Math.max(1, Math.min(20, Number(perPage) || 6));
+  if (!safePostId) throw new Error("Invalid post id");
+
+  const targetResult = await fetchRows(env, "posts", {
+    params: { select: "id", id: `eq.${safePostId}`, limit: 1 },
+  });
+  const target = targetResult.data?.[0];
+  if (!target) throw new Error("Post not found");
+
+  const rankResult = await fetchRows(env, "posts", {
+    params: { select: "id", id: `gt.${safePostId}`, limit: 1 },
+    headers: { Prefer: "count=exact" },
+  });
+  const newerCount = Number((rankResult.headers.get("content-range") || "0-0/0").split("/")[1] || 0);
+  return { postId: safePostId, page: Math.floor(newerCount / safePerPage) + 1, perPage: safePerPage };
+}
+
 export async function fetchPersonData(env, { owner = "you", page = 1, perPage = 15 } = {}) {
   getRequiredSupabaseEnv(env);
   const safePage = Math.max(1, Number(page) || 1);
@@ -531,7 +551,7 @@ export async function createPost(env, { owner = "you", content, recordDate, imag
       })),
     });
   }
-  return fetchPersonData(env, { owner, page: 1, perPage: 15 });
+  return fetchPersonData(env, { owner, page: 1, perPage: 6 });
 }
 
 export async function updatePost(env, { postId, owner = "you", content, recordDate }) {
@@ -544,7 +564,7 @@ export async function updatePost(env, { postId, owner = "you", content, recordDa
   if (!existing) throw new Error("Post not found");
   if (existing.owner !== owner) throw new Error("No permission to edit this post");
   await mutateRows(env, "posts", { method: "PATCH", params: { id: `eq.${safePostId}` }, headers: { Prefer: "return=representation" }, body: { content: safeContent, summary: buildPostSummary(safeContent), record_date: safeRecordDate } });
-  return fetchPersonData(env, { owner, page: 1, perPage: 15 });
+  return fetchPersonData(env, { owner, page: 1, perPage: 6 });
 }
 
 export async function deletePostById(env, { postId, owner = "you" }) {
@@ -555,7 +575,7 @@ export async function deletePostById(env, { postId, owner = "you" }) {
   if (!existing) throw new Error("Post not found");
   if (existing.owner !== owner) throw new Error("No permission to delete this post");
   await mutateRows(env, "posts", { method: "DELETE", params: { id: `eq.${safePostId}` }, headers: { Prefer: "return=minimal" } });
-  return fetchPersonData(env, { owner, page: 1, perPage: 15 });
+  return fetchPersonData(env, { owner, page: 1, perPage: 6 });
 }
 
 export async function createBucketItem(env, { owner, content }) {

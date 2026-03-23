@@ -16,6 +16,7 @@ import {
   fetchBucketData,
   fetchHomeData,
   fetchNotificationsData,
+  fetchPostPageById,
   fetchPersonData,
   fetchPostsData,
   fetchQnaData,
@@ -103,6 +104,13 @@ export async function handleApi(request, env) {
     if (!useReal) return json({ ...postsPayload, mode: runtime.mode, runtime });
     try { return json({ ...(await fetchPostsData(env, { page: url.searchParams.get("page") || 1, perPage: url.searchParams.get("perPage") || 6 })), mode: runtime.mode, runtime }); }
     catch (error) { return json({ error: "POSTS_FETCH_FAILED", detail: String(error), runtime }, { status: 500 }); }
+  }
+
+  const postPageMatch = request.method === "GET" ? url.pathname.match(/^\/api\/v1\/posts\/(\d+)\/page$/) : null;
+  if (postPageMatch) {
+    if (!useReal) return json({ postId: Number(postPageMatch[1]), page: 1, perPage: Number(url.searchParams.get("perPage") || 6), mode: runtime.mode, runtime });
+    try { return json({ ...(await fetchPostPageById(env, { postId: Number(postPageMatch[1]), perPage: url.searchParams.get("perPage") || 6 })), mode: runtime.mode, runtime }); }
+    catch (error) { return json({ error: "POST_PAGE_FETCH_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 
   if (request.method === "GET" && url.pathname === "/api/v1/bucket") {
