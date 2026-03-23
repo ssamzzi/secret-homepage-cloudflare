@@ -7,6 +7,7 @@ import {
   createBucketItem,
   createPost,
   createQuestion,
+  deleteCommentById,
   deleteBucketItemById,
   deletePostById,
   deleteQuestionById,
@@ -21,8 +22,10 @@ import {
   saveDday,
   saveMood,
   toggleBucketItemById,
+  updateComment,
   updatePost,
 } from "./realData.js";
+import { uploadImageToCloudinary } from "../lib/cloudinary.js";
 
 function buildSessionPayload(runtime, session) {
   return {
@@ -114,10 +117,33 @@ export async function handleApi(request, env) {
   const personCreateMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/person\/(you|partner)\/posts$/) : null;
   if (personCreateMatch) {
     try {
-      const body = await request.json();
-      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
+      let payload;
+      const contentType = request.headers.get("content-type") || "";
+      if (contentType.includes("multipart/form-data")) {
+        const form = await request.formData();
+        const files = form.getAll("images").filter((value) => typeof value !== "string" && value?.size);
+        const imageUrls = [];
+        if (useReal) {
+          for (const file of files) {
+            imageUrls.push(await uploadImageToCloudinary(env, file));
+          }
+        }
+        payload = {
+          recordDate: String(form.get("recordDate") || ""),
+          content: String(form.get("content") || "").trim(),
+          imageUrls,
+        };
+      } else {
+        const body = await request.json();
+        payload = {
+          recordDate: body?.recordDate,
+          content: body?.content,
+          imageUrls: Array.isArray(body?.imageUrls) ? body.imageUrls : [],
+        };
+      }
+      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body: payload });
       if (personCreateMatch[1] !== session.currentUser) return json({ error: "POST_CREATE_FAILED", detail: "자신의 페이지에서만 글을 작성할 수 있습니다.", runtime }, { status: 403 });
-      return json({ ok: true, saved: true, mode: runtime.mode, person: await createPost(env, { owner: personCreateMatch[1], content: body?.content, recordDate: body?.recordDate }) });
+      return json({ ok: true, saved: true, mode: runtime.mode, person: await createPost(env, { owner: personCreateMatch[1], content: payload.content, recordDate: payload.recordDate, imageUrls: payload.imageUrls }) });
     } catch (error) { return json({ error: "POST_CREATE_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 
@@ -210,6 +236,23 @@ export async function handleApi(request, env) {
       if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
       return json({ ok: true, saved: true, mode: runtime.mode, posts: await saveComment(env, { postId: Number(commentMatch[1]), author: session.currentUser, content: body?.content }) });
     } catch (error) { return json({ error: "COMMENT_SAVE_FAILED", detail: String(error), runtime }, { status: 500 }); }
+  }
+
+  const commentEditMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/comments\/(\d+)\/edit$/) : null;
+  if (commentEditMatch) {
+    try {
+      const body = await request.json();
+      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
+      return json({ ok: true, saved: true, mode: runtime.mode, posts: await updateComment(env, { commentId: Number(commentEditMatch[1]), author: session.currentUser, content: body?.content }) });
+    } catch (error) { return json({ error: "COMMENT_EDIT_FAILED", detail: String(error), runtime }, { status: 500 }); }
+  }
+
+  const commentDeleteMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/comments\/(\d+)\/delete$/) : null;
+  if (commentDeleteMatch) {
+    try {
+      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode });
+      return json({ ok: true, saved: true, mode: runtime.mode, posts: await deleteCommentById(env, { commentId: Number(commentDeleteMatch[1]), author: session.currentUser }) });
+    } catch (error) { return json({ error: "COMMENT_DELETE_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 
   const editMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/posts\/(\d+)\/edit$/) : null;

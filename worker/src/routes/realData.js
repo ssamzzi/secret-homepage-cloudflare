@@ -142,6 +142,11 @@ async function fetchPostOwner(env, postId) {
   return result.data?.[0] || null;
 }
 
+async function fetchCommentById(env, commentId) {
+  const result = await fetchRows(env, "comments", { params: { select: "id,post_id,author,content,created_at", id: `eq.${Number(commentId)}`, limit: 1 } });
+  return result.data?.[0] || null;
+}
+
 async function fetchQuestionById(env, questionId) {
   const result = await fetchRows(env, "qna", { params: { select: "id,author,target,question,answer,answered_by,created_at,answered_at", id: `eq.${Number(questionId)}`, limit: 1 } });
   return result.data?.[0] || null;
@@ -246,12 +251,58 @@ export async function saveComment(env, { postId, author = "you", content }) {
   return fetchPostsData(env, { page: 1, perPage: 6 });
 }
 
-export async function createPost(env, { owner = "you", content, recordDate }) {
+export async function updateComment(env, { commentId, author = "you", content }) {
+  getRequiredSupabaseEnv(env);
+  const safeCommentId = Number(commentId);
+  const safeContent = String(content || "").trim();
+  if (!safeCommentId || !safeContent) throw new Error("Missing comment fields");
+  const existing = await fetchCommentById(env, safeCommentId);
+  if (!existing) throw new Error("Comment not found");
+  if (existing.author !== author) throw new Error("No permission to edit this comment");
+  await mutateRows(env, "comments", {
+    method: "PATCH",
+    params: { id: `eq.${safeCommentId}` },
+    headers: { Prefer: "return=representation" },
+    body: { content: safeContent },
+  });
+  return fetchPostsData(env, { page: 1, perPage: 6 });
+}
+
+export async function deleteCommentById(env, { commentId, author = "you" }) {
+  getRequiredSupabaseEnv(env);
+  const safeCommentId = Number(commentId);
+  if (!safeCommentId) throw new Error("Invalid comment id");
+  const existing = await fetchCommentById(env, safeCommentId);
+  if (!existing) throw new Error("Comment not found");
+  if (existing.author !== author) throw new Error("No permission to delete this comment");
+  await mutateRows(env, "comments", {
+    method: "DELETE",
+    params: { id: `eq.${safeCommentId}` },
+    headers: { Prefer: "return=minimal" },
+  });
+  return fetchPostsData(env, { page: 1, perPage: 6 });
+}
+
+export async function createPost(env, { owner = "you", content, recordDate, imageUrls = [] }) {
   getRequiredSupabaseEnv(env);
   const safeContent = String(content || "").trim();
   const safeRecordDate = String(recordDate || "").trim();
   if (!safeContent || !safeRecordDate) throw new Error("Missing post fields");
-  await mutateRows(env, "posts", { method: "POST", headers: { Prefer: "return=representation" }, body: { owner, content: safeContent, summary: buildPostSummary(safeContent), record_date: safeRecordDate, created_at: nowIso() } });
+  const created = await mutateRows(env, "posts", { method: "POST", headers: { Prefer: "return=representation" }, body: { owner, content: safeContent, summary: buildPostSummary(safeContent), record_date: safeRecordDate, created_at: nowIso() } });
+  const post = created.data?.[0];
+  const safeImageUrls = imageUrls.filter(Boolean);
+  if (post?.id && safeImageUrls.length) {
+    await mutateRows(env, "posts_images", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: safeImageUrls.map((imagePath, index) => ({
+        post_id: post.id,
+        image_path: imagePath,
+        sort_order: index,
+        created_at: nowIso(),
+      })),
+    });
+  }
   return fetchPersonData(env, { owner, page: 1, perPage: 15 });
 }
 

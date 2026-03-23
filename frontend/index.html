@@ -32,7 +32,7 @@
           <div class="hero-head">
             <div>
               <h1>강구현지원</h1>
-              <p class="lead">기존 Render 사이트는 그대로 두고, Cloudflare에서 원래 사이트의 핵심 기능을 순서대로 옮기고 있습니다.</p>
+              <p class="lead">기록, 질문, 버킷리스트를 한곳에 모아 멀리 있어도 서로의 하루와 마음을 계속 느낄 수 있게 만드는 공간입니다.</p>
             </div>
             <div class="hero-actions">
               <div class="hero-badge" id="session-chip">세션 확인 중...</div>
@@ -46,7 +46,7 @@
           <button class="tab-btn" type="button" data-tab-target="person-panel">내 기록</button>
           <button class="tab-btn" type="button" data-tab-target="board-panel">우리의 일상들</button>
           <button class="tab-btn" type="button" data-tab-target="bucket-panel">버킷리스트</button>
-          <button class="tab-btn" type="button" data-tab-target="qna-panel">궁금해</button>
+          <button class="tab-btn" type="button" data-tab-target="qna-panel">궁금해!</button>
           <button class="tab-btn ghost" type="button" id="health-check">API 확인</button>
         </nav>
 
@@ -100,11 +100,13 @@
         </section>
 
         <section class="panel" id="person-panel">
-          <article class="card person-head"><div class="row-between section-head"><h2 id="person-title">내 기록</h2><span class="pill alt">Person</span></div><p class="lead small">현재는 글 작성, 수정, 삭제까지 연결합니다.</p></article>
+          <article class="card person-head"><div class="row-between section-head"><h2 id="person-title">내 기록</h2><span class="pill alt">Person</span></div><p class="lead small">사진과 함께 오늘의 기록을 남기고, 나중에 다시 꺼내볼 수 있게 정리합니다.</p></article>
           <article class="card compose-card">
-            <form id="person-post-form" class="stack-form">
+            <form id="person-post-form" class="stack-form" enctype="multipart/form-data">
               <label><span>기록 날짜</span><input type="date" name="recordDate" id="person-record-date" required /></label>
               <label><span>내용</span><textarea name="content" id="person-content" rows="5" placeholder="오늘의 시간을 적어주세요" required></textarea></label>
+              <label><span>사진</span><input type="file" name="images" id="person-images" accept="image/*" multiple /></label>
+              <p class="muted small">여러 장을 한 번에 올릴 수 있어요.</p>
               <button type="submit">기록 저장</button>
             </form>
           </article>
@@ -112,7 +114,7 @@
         </section>
 
         <section class="panel" id="board-panel">
-          <article class="card board-head"><div class="row-between section-head"><h2>우리의 일상들</h2><span class="pill">6개 기준</span></div><p class="lead small">실데이터 읽기에 이어 댓글 작성까지 Cloudflare 경로로 붙이는 중입니다.</p></article>
+          <article class="card board-head"><div class="row-between section-head"><h2>우리의 일상들</h2><span class="pill">6개 기준</span></div><p class="lead small">서로의 하루를 사진과 기록, 댓글로 이어서 쌓아가는 메인 공간입니다.</p></article>
           <div class="board-grid" id="board-grid"></div>
         </section>
 
@@ -132,7 +134,7 @@
         </section>
 
         <section class="panel" id="qna-panel">
-          <article class="card panel-head"><div class="row-between section-head"><h2>궁금해</h2><span class="pill alt">QnA</span></div><p class="lead small">서로에게 묻고 답하는 질문 공간입니다.</p></article>
+          <article class="card panel-head"><div class="row-between section-head"><h2>궁금해!</h2><span class="pill alt">QnA</span></div><p class="lead small">평소엔 못 물었던 질문도 가볍게 남기고, 천천히 답할 수 있는 공간입니다.</p></article>
           <article class="card compose-card">
             <form id="qna-form" class="stack-form">
               <label><span>질문</span><textarea name="question" rows="3" placeholder="궁금한 질문을 적어주세요" required></textarea></label>

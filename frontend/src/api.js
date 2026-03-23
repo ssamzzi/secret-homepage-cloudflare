@@ -21,3 +21,15 @@ export async function sendJson(url, { method = "POST", body } = {}) {
   }
   return data;
 }
+
+export async function sendForm(url, formData, { method = "POST" } = {}) {
+  const response = await fetch(url, {
+    method,
+    body: formData,
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.detail || data?.error || `Request failed: ${response.status}`);
+  }
+  return data;
+}

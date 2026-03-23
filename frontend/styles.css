@@ -423,8 +423,9 @@ button:disabled,
 }
 
 .bucket-card.done {
-  background: #f7f2f9;
-  border-color: #dbcfe3;
+  background: linear-gradient(180deg, #f3eef7 0%, #ece6f2 100%);
+  border-color: #cfc0dc;
+  opacity: 0.92;
 }
 
 .bucket-owner {
@@ -438,6 +439,23 @@ button:disabled,
 .qna-answer {
   margin-bottom: 0;
   line-height: 1.7;
+}
+
+.bucket-card.done .bucket-text {
+  color: #6e6079;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.done-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #d7efdf;
+  color: #2c6a41;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .qna-question {
@@ -473,6 +491,8 @@ button:disabled,
 }
 .image-stack img {
   width: 100%;
+  max-height: 420px;
+  object-fit: cover;
   border-radius: 18px;
   border: 1px solid var(--line);
   display: block;
@@ -522,6 +542,52 @@ button:disabled,
   gap: 8px;
 }
 .comment-list p:last-child { margin-bottom: 0; }
+.comment-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #efe5f6;
+}
+.comment-line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.comment-body {
+  line-height: 1.7;
+  flex: 1 1 180px;
+}
+.comment-tools,
+.inline-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.tiny-link-btn {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.danger-link {
+  color: var(--danger);
+}
+.comment-edit-form {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+.comment-edit-form textarea {
+  min-height: 62px;
+}
 .comment-form {
   display: grid;
   gap: 10px;
@@ -583,6 +649,12 @@ pre {
   .post-actions { justify-content: stretch; }
   .post-actions .danger-btn { width: 100%; }
   .mini-action { width: 100%; }
+  .comments-box h3 {
+    font-size: 1rem;
+  }
+  .image-stack img {
+    max-height: 260px;
+  }
   .compact-form-inline,
   .filter-row {
     grid-template-columns: 1fr;
@@ -591,6 +663,9 @@ pre {
   .small-btn,
   .action-row {
     width: 100%;
+  }
+  .tiny-link-btn {
+    width: auto;
   }
   .action-row {
     flex-direction: column;
