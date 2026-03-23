@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>강구현지원 | Cloudflare Migration</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">CLOUDFLARE MIGRATION</p>
+        <h1>강구현지원</h1>
+        <p class="lead">
+          기존 Render 사이트는 그대로 유지하고, Cloudflare 버전을 병행 구축하는 작업 공간입니다.
+        </p>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>현재 상태</h2>
+          <ul>
+            <li>원래 Flask/Render 사이트는 계속 운영</li>
+            <li>이 저장소는 Cloudflare 이전용 별도 코드베이스</li>
+            <li>1차 목표는 Home / Board 이전</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>다음 단계</h2>
+          <ul>
+            <li>세션 API 연결</li>
+            <li>Home 데이터 API 연결</li>
+            <li>Board 목록 API 연결</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="card api-card">
+        <div class="row">
+          <h2>API 부트스트랩</h2>
+          <button id="check-health" type="button">헬스 체크</button>
+        </div>
+        <pre id="output">버튼을 누르면 /api/v1/health 응답을 확인합니다.</pre>
+      </section>
+    </main>
+
+    <script src="/main.js" type="module"></script>
+  </body>
+</html>
