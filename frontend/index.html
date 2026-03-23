@@ -12,10 +12,7 @@
         <h2>비밀번호 입력</h2>
         <p class="lead small">기존 사이트처럼 먼저 비밀번호를 입력하고 들어갑니다.</p>
         <form id="login-form" class="stack-form">
-          <label>
-            <span>사이트 비밀번호</span>
-            <input type="password" name="password" id="login-password" required />
-          </label>
+          <label><span>사이트 비밀번호</span><input type="password" name="password" id="login-password" required /></label>
           <button type="submit">입장하기</button>
         </form>
       </section>
@@ -48,6 +45,8 @@
           <button class="tab-btn active" type="button" data-tab-target="home-panel">홈</button>
           <button class="tab-btn" type="button" data-tab-target="person-panel">내 기록</button>
           <button class="tab-btn" type="button" data-tab-target="board-panel">우리의 일상들</button>
+          <button class="tab-btn" type="button" data-tab-target="bucket-panel">버킷리스트</button>
+          <button class="tab-btn" type="button" data-tab-target="qna-panel">궁금해</button>
           <button class="tab-btn ghost" type="button" id="health-check">API 확인</button>
         </nav>
 
@@ -56,133 +55,98 @@
         <section class="panel active" id="home-panel">
           <div class="grid-two">
             <article class="card dday-card">
-              <div class="row-between section-head">
-                <h2>D-day</h2>
-                <span class="pill">Home</span>
-              </div>
+              <div class="row-between section-head"><h2>D-day</h2><span class="pill">Home</span></div>
               <p class="dday-value" id="dday-label">--</p>
               <p class="muted" id="dday-title">불러오는 중...</p>
               <div class="progress-wrap">
-                <div class="progress-head">
-                  <span>진행률</span>
-                  <strong id="dday-progress-text">--</strong>
-                </div>
+                <div class="progress-head"><span>진행률</span><strong id="dday-progress-text">--</strong></div>
                 <div class="progress-bar"><span id="dday-progress-bar" style="width: 0%"></span></div>
               </div>
               <details class="editor-box" id="dday-editor">
                 <summary>D-day 설정 수정</summary>
                 <form id="dday-form" class="stack-form">
-                  <label>
-                    <span>제목</span>
-                    <input type="text" name="title" id="dday-form-title" required />
-                  </label>
-                  <label>
-                    <span>시작일</span>
-                    <input type="date" name="startDate" id="dday-form-start" required />
-                  </label>
-                  <label>
-                    <span>목표일</span>
-                    <input type="date" name="targetDate" id="dday-form-target" required />
-                  </label>
+                  <label><span>제목</span><input type="text" name="title" id="dday-form-title" required /></label>
+                  <label><span>시작일</span><input type="date" name="startDate" id="dday-form-start" required /></label>
+                  <label><span>목표일</span><input type="date" name="targetDate" id="dday-form-target" required /></label>
                   <button type="submit">저장</button>
                 </form>
               </details>
             </article>
 
             <article class="card clocks-card">
-              <div class="row-between section-head">
-                <h2>지금 시간</h2>
-                <span class="pill alt">Live</span>
-              </div>
+              <div class="row-between section-head"><h2>지금 시간</h2><span class="pill alt">Live</span></div>
               <div class="clock-grid">
-                <div class="clock-box">
-                  <p class="clock-label">서울</p>
-                  <p class="clock-time" id="clock-seoul">--:--:--</p>
-                </div>
-                <div class="clock-box">
-                  <p class="clock-label">아순시온</p>
-                  <p class="clock-time" id="clock-asuncion">--:--:--</p>
-                </div>
+                <div class="clock-box"><p class="clock-label">서울</p><p class="clock-time" id="clock-seoul">--:--:--</p></div>
+                <div class="clock-box"><p class="clock-label">아순시온</p><p class="clock-time" id="clock-asuncion">--:--:--</p></div>
               </div>
             </article>
           </div>
 
           <div class="grid-two lower-grid">
             <article class="card mood-card">
-              <div class="row-between section-head">
-                <h2>오늘의 기분 스티커</h2>
-                <span class="pill alt" id="mood-mode-pill">Mock</span>
-              </div>
+              <div class="row-between section-head"><h2>오늘의 기분 스티커</h2><span class="pill alt" id="mood-mode-pill">Mock</span></div>
               <div class="mood-strip" id="mood-strip"></div>
               <div class="mood-picker" id="mood-picker"></div>
             </article>
-
             <article class="card recent-card">
-              <div class="row-between section-head">
-                <h2>최근 기록</h2>
-                <span class="muted small">최근 3개</span>
-              </div>
+              <div class="row-between section-head"><h2>최근 기록</h2><span class="muted small">최근 3개</span></div>
               <div class="recent-list" id="recent-list"></div>
             </article>
           </div>
 
           <article class="card calendar-card">
-            <details>
-              <summary class="calendar-summary">
-                <span id="calendar-title">달력</span>
-                <span class="pill">접고 펼치기</span>
-              </summary>
-              <div class="calendar-grid" id="calendar-grid"></div>
-            </details>
+            <details><summary class="calendar-summary"><span id="calendar-title">달력</span><span class="pill">접고 펼치기</span></summary><div class="calendar-grid" id="calendar-grid"></div></details>
           </article>
         </section>
 
         <section class="panel" id="person-panel">
-          <article class="card person-head">
-            <div class="row-between section-head">
-              <h2 id="person-title">내 기록</h2>
-              <span class="pill alt">Person</span>
-            </div>
-            <p class="lead small">원래 사이트의 개인 페이지 흐름을 Cloudflare 쪽으로 옮기는 중입니다. 현재는 글 작성, 수정, 삭제까지 연결합니다.</p>
-          </article>
-
+          <article class="card person-head"><div class="row-between section-head"><h2 id="person-title">내 기록</h2><span class="pill alt">Person</span></div><p class="lead small">현재는 글 작성, 수정, 삭제까지 연결합니다.</p></article>
           <article class="card compose-card">
             <form id="person-post-form" class="stack-form">
-              <label>
-                <span>기록 날짜</span>
-                <input type="date" name="recordDate" id="person-record-date" required />
-              </label>
-              <label>
-                <span>내용</span>
-                <textarea name="content" id="person-content" rows="5" placeholder="오늘의 시간을 적어주세요" required></textarea>
-              </label>
+              <label><span>기록 날짜</span><input type="date" name="recordDate" id="person-record-date" required /></label>
+              <label><span>내용</span><textarea name="content" id="person-content" rows="5" placeholder="오늘의 시간을 적어주세요" required></textarea></label>
               <button type="submit">기록 저장</button>
             </form>
           </article>
-
           <section class="stack-list" id="person-posts"></section>
         </section>
 
         <section class="panel" id="board-panel">
-          <article class="card board-head">
-            <div class="row-between section-head">
-              <h2>우리의 일상들</h2>
-              <span class="pill">6개 기준</span>
-            </div>
-            <p class="lead small">실데이터 읽기에 이어 댓글 작성까지 Cloudflare 경로로 붙이는 중입니다.</p>
-          </article>
+          <article class="card board-head"><div class="row-between section-head"><h2>우리의 일상들</h2><span class="pill">6개 기준</span></div><p class="lead small">실데이터 읽기에 이어 댓글 작성까지 Cloudflare 경로로 붙이는 중입니다.</p></article>
           <div class="board-grid" id="board-grid"></div>
         </section>
 
-        <section class="card api-log-card">
-          <details>
-            <summary class="api-log-summary">
-              <span>API 로그</span>
-              <span class="muted small">필요할 때만 보기</span>
-            </summary>
-            <pre id="api-log">아직 실행된 요청이 없습니다.</pre>
-          </details>
+        <section class="panel" id="bucket-panel">
+          <article class="card panel-head"><div class="row-between section-head"><h2>버킷리스트</h2><span class="pill alt">Bucket</span></div><p class="lead small">같이 하고 싶은 일들을 적고 완료 상태를 관리합니다.</p></article>
+          <article class="card compose-card">
+            <form id="bucket-form" class="stack-form compact-form-inline">
+              <label><span>버킷 내용</span><input type="text" name="content" placeholder="예: 같이 바다 보러 가기" required /></label>
+              <button type="submit">추가</button>
+            </form>
+            <div class="filter-row">
+              <label><span>작성자</span><select id="bucket-owner-filter"><option value="all">전체</option><option value="me">내 항목</option><option value="partner">상대 항목</option></select></label>
+              <label><span>상태</span><select id="bucket-status-filter"><option value="all">전체</option><option value="open">미완료</option><option value="done">완료</option></select></label>
+            </div>
+          </article>
+          <section class="stack-list" id="bucket-items"></section>
         </section>
+
+        <section class="panel" id="qna-panel">
+          <article class="card panel-head"><div class="row-between section-head"><h2>궁금해</h2><span class="pill alt">QnA</span></div><p class="lead small">서로에게 묻고 답하는 질문 공간입니다.</p></article>
+          <article class="card compose-card">
+            <form id="qna-form" class="stack-form">
+              <label><span>질문</span><textarea name="question" rows="3" placeholder="궁금한 질문을 적어주세요" required></textarea></label>
+              <button type="submit">질문 등록</button>
+            </form>
+            <div class="filter-row">
+              <label><span>범위</span><select id="qna-scope-filter"><option value="all">전체</option><option value="mine">내 질문</option><option value="for_me">내게 온 질문</option></select></label>
+              <label><span>상태</span><select id="qna-progress-filter"><option value="all">전체</option><option value="pending">답변 대기</option><option value="answered">답변 완료</option></select></label>
+            </div>
+          </article>
+          <section class="stack-list" id="qna-items"></section>
+        </section>
+
+        <section class="card api-log-card"><details><summary class="api-log-summary"><span>API 로그</span><span class="muted small">필요할 때만 보기</span></summary><pre id="api-log">아직 실행된 요청이 없습니다.</pre></details></section>
       </section>
     </main>
 

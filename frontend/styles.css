@@ -389,10 +389,82 @@ button:disabled,
 
 .board-head,
 .person-head,
-.compose-card {
+.compose-card,
+.panel-head {
   margin-bottom: 16px;
 }
 .board-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+.compact-form-inline {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.compact-form-inline button {
+  width: auto;
+  min-width: 120px;
+}
+
+.filter-row {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.filter-row label {
+  display: grid;
+  gap: 6px;
+}
+
+.bucket-card,
+.qna-card {
+  padding: 18px;
+}
+
+.bucket-card.done {
+  background: #f7f2f9;
+  border-color: #dbcfe3;
+}
+
+.bucket-owner {
+  margin-bottom: 8px;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.bucket-text,
+.qna-question,
+.qna-answer {
+  margin-bottom: 0;
+  line-height: 1.7;
+}
+
+.qna-question {
+  margin-top: 10px;
+  font-weight: 700;
+}
+
+.qna-answer {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #eadcf7;
+  background: #faf4ff;
+}
+
+.action-row {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.small-btn {
+  width: auto;
+  min-width: 96px;
+  padding: 10px 14px;
+}
 
 .image-stack {
   display: grid;
@@ -511,4 +583,16 @@ pre {
   .post-actions { justify-content: stretch; }
   .post-actions .danger-btn { width: 100%; }
   .mini-action { width: 100%; }
+  .compact-form-inline,
+  .filter-row {
+    grid-template-columns: 1fr;
+  }
+  .compact-form-inline button,
+  .small-btn,
+  .action-row {
+    width: 100%;
+  }
+  .action-row {
+    flex-direction: column;
+  }
 }
