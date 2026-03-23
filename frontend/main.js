@@ -1,4 +1,4 @@
-﻿import { getJson } from "/src/api.js";
+import { getJson } from "/src/api.js";
 
 const state = {
   session: null,
@@ -11,7 +11,9 @@ const statusStrip = document.getElementById("status-strip");
 const sessionChip = document.getElementById("session-chip");
 
 function logApi(label, payload) {
-  apiLog.textContent = `${label}\n${JSON.stringify(payload, null, 2)}`;
+  const serialized = JSON.stringify(payload, null, 2);
+  const limited = serialized.length > 1200 ? `${serialized.slice(0, 1200)}\n... (truncated)` : serialized;
+  apiLog.textContent = `${label}\n${limited}`;
 }
 
 async function loadJson(url) {

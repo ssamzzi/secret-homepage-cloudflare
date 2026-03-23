@@ -107,11 +107,13 @@
       </section>
 
       <section class="card api-log-card">
-        <div class="row-between section-head">
-          <h2>API 로그</h2>
-          <span class="muted small">진단용</span>
-        </div>
-        <pre id="api-log">아직 실행된 요청이 없습니다.</pre>
+        <details>
+          <summary class="api-log-summary">
+            <span>API 로그</span>
+            <span class="muted small">필요할 때만 보기</span>
+          </summary>
+          <pre id="api-log">아직 실행된 요청이 없습니다.</pre>
+        </details>
       </section>
     </main>
 
