@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
@@ -13,7 +13,7 @@
         <div class="hero-head">
           <div>
             <h1>강구현지원</h1>
-            <p class="lead">기존 Render 사이트는 그대로 두고, Cloudflare에서 Home / Board를 병행 구현하는 시범 버전입니다.</p>
+            <p class="lead">기존 Render 사이트는 그대로 두고, Cloudflare에서 Home과 Board를 먼저 병행 구현하는 실험 버전입니다.</p>
           </div>
           <div class="hero-badge" id="session-chip">세션 확인 중...</div>
         </div>
@@ -25,9 +25,7 @@
         <button class="tab-btn ghost" type="button" id="health-check">API 확인</button>
       </nav>
 
-      <section class="status-strip card" id="status-strip">
-        Cloudflare pilot 부트스트랩 로딩 중...
-      </section>
+      <section class="status-strip card" id="status-strip">Cloudflare pilot 부트스트랩 로딩 중...</section>
 
       <section class="panel active" id="home-panel">
         <div class="grid-two">
@@ -45,6 +43,24 @@
               </div>
               <div class="progress-bar"><span id="dday-progress-bar" style="width: 0%"></span></div>
             </div>
+            <details class="editor-box">
+              <summary>D-day 설정 수정</summary>
+              <form id="dday-form" class="stack-form">
+                <label>
+                  <span>제목</span>
+                  <input type="text" name="title" id="dday-form-title" required />
+                </label>
+                <label>
+                  <span>시작일</span>
+                  <input type="date" name="startDate" id="dday-form-start" required />
+                </label>
+                <label>
+                  <span>목표일</span>
+                  <input type="date" name="targetDate" id="dday-form-target" required />
+                </label>
+                <button type="submit">저장</button>
+              </form>
+            </details>
           </article>
 
           <article class="card clocks-card">
@@ -69,7 +85,7 @@
           <article class="card mood-card">
             <div class="row-between section-head">
               <h2>오늘의 기분 스티커</h2>
-              <span class="pill alt">Mock</span>
+              <span class="pill alt" id="mood-mode-pill">Mock</span>
             </div>
             <div class="mood-strip" id="mood-strip"></div>
             <div class="mood-picker" id="mood-picker"></div>
@@ -88,7 +104,7 @@
           <details>
             <summary class="calendar-summary">
               <span id="calendar-title">달력</span>
-              <span class="pill">펼쳐보기</span>
+              <span class="pill">접고 펼치기</span>
             </summary>
             <div class="calendar-grid" id="calendar-grid"></div>
           </details>
@@ -101,7 +117,7 @@
             <h2>우리의 일상들</h2>
             <span class="pill">6개 기준</span>
           </div>
-          <p class="lead small">Cloudflare 버전 보드 시범 화면입니다. 현재는 mock 데이터로 렌더링되고 있습니다.</p>
+          <p class="lead small">실데이터 읽기에 이어 댓글 작성까지 Cloudflare 경로로 붙이는 중입니다.</p>
         </article>
         <div class="board-grid" id="board-grid"></div>
       </section>

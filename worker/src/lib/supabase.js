@@ -39,6 +39,10 @@ export async function fetchRows(env, path, options = {}) {
   return supabaseFetch(env, path, options);
 }
 
+export async function mutateRows(env, path, options = {}) {
+  return supabaseFetch(env, path, options);
+}
+
 export function getRequiredSupabaseEnv(env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
     throw new Error("SUPABASE_URL or SUPABASE_SECRET_KEY is missing");

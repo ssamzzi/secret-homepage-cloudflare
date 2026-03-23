@@ -1,4 +1,4 @@
-﻿import { fetchRows, getRequiredSupabaseEnv } from "../lib/supabase.js";
+﻿import { fetchRows, getRequiredSupabaseEnv, mutateRows } from "../lib/supabase.js";
 import { moodStickers } from "../mock/data.js";
 
 function startOfMonth(monthText) {
@@ -24,6 +24,21 @@ function formatDate(dateObj) {
   const m = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
   const d = String(dateObj.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function currentDateInTimezone(timeZone = "Asia/Seoul") {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
 function buildCalendar(monthStart, posts) {
@@ -200,7 +215,7 @@ export async function fetchPostsData(env, { page = 1, perPage = 6 } = {}) {
       }),
       fetchRows(env, "posts_images", {
         params: {
-          select: "post_id,image_path,sort_order,created_at",
+          select: "id,post_id,image_path,sort_order,created_at",
           post_id: `in.(${idList})`,
           order: "sort_order.asc,id.asc",
         },
@@ -241,3 +256,83 @@ export async function fetchPostsData(env, { page = 1, perPage = 6 } = {}) {
     },
   };
 }
+
+export async function saveMood(env, { owner = "you", moodId }) {
+  getRequiredSupabaseEnv(env);
+  if (!moodStickers.find((item) => item.id === moodId)) {
+    throw new Error("Invalid mood id");
+  }
+
+  await mutateRows(env, "mood_stickers", {
+    method: "POST",
+    params: {
+      on_conflict: "owner,record_date",
+    },
+    headers: {
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: [
+      {
+        owner,
+        mood_id: moodId,
+        record_date: currentDateInTimezone(env.DISPLAY_TIMEZONE || "Asia/Seoul"),
+        created_at: nowIso(),
+      },
+    ],
+  });
+
+  return fetchHomeData(env, "");
+}
+
+export async function saveDday(env, { title, startDate, targetDate }) {
+  getRequiredSupabaseEnv(env);
+  if (!title || !startDate || !targetDate) {
+    throw new Error("Missing D-day fields");
+  }
+
+  await mutateRows(env, "dday_settings", {
+    method: "POST",
+    params: {
+      on_conflict: "id",
+    },
+    headers: {
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: [
+      {
+        id: 1,
+        title,
+        start_date: startDate,
+        target_date: targetDate,
+        updated_at: nowIso(),
+      },
+    ],
+  });
+
+  return fetchHomeData(env, "");
+}
+
+export async function saveComment(env, { postId, author = "you", content }) {
+  getRequiredSupabaseEnv(env);
+  const safePostId = Number(postId);
+  const safeContent = String(content || "").trim();
+  if (!safePostId || !safeContent) {
+    throw new Error("Missing comment fields");
+  }
+
+  await mutateRows(env, "comments", {
+    method: "POST",
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: {
+      post_id: safePostId,
+      author,
+      content: safeContent,
+      created_at: nowIso(),
+    },
+  });
+
+  return fetchPostsData(env, { page: 1, perPage: 6 });
+}
+

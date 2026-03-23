@@ -1,7 +1,7 @@
 ﻿import { json } from "../lib/responses.js";
 import { getRuntimeConfig } from "../lib/config.js";
 import { people, homePayload, postsPayload } from "../mock/data.js";
-import { fetchHomeData, fetchPostsData } from "./realData.js";
+import { fetchHomeData, fetchPostsData, saveComment, saveDday, saveMood } from "./realData.js";
 
 function mockSession(runtime) {
   return {
@@ -51,11 +51,45 @@ export async function handleApi(request, env) {
   }
 
   if (request.method === "POST" && url.pathname === "/api/v1/moods") {
-    return json({ ok: true, saved: true, mode: runtime.mode });
+    try {
+      const body = await request.json();
+      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
+      const home = await saveMood(env, { owner: "you", moodId: body?.moodId });
+      return json({ ok: true, saved: true, mode: runtime.mode, home });
+    } catch (error) {
+      return json({ error: "MOOD_SAVE_FAILED", detail: String(error), runtime }, { status: 500 });
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/api/v1/dday") {
-    return json({ ok: true, saved: true, mode: runtime.mode });
+    try {
+      const body = await request.json();
+      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
+      const home = await saveDday(env, {
+        title: body?.title,
+        startDate: body?.startDate,
+        targetDate: body?.targetDate,
+      });
+      return json({ ok: true, saved: true, mode: runtime.mode, home });
+    } catch (error) {
+      return json({ error: "DDAY_SAVE_FAILED", detail: String(error), runtime }, { status: 500 });
+    }
+  }
+
+  const commentMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/posts\/(\d+)\/comments$/) : null;
+  if (commentMatch) {
+    try {
+      const body = await request.json();
+      if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
+      const posts = await saveComment(env, {
+        postId: Number(commentMatch[1]),
+        author: "you",
+        content: body?.content,
+      });
+      return json({ ok: true, saved: true, mode: runtime.mode, posts });
+    } catch (error) {
+      return json({ error: "COMMENT_SAVE_FAILED", detail: String(error), runtime }, { status: 500 });
+    }
   }
 
   return null;

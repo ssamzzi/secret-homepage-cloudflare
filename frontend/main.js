@@ -1,4 +1,4 @@
-import { getJson } from "/src/api.js";
+﻿import { getJson, sendJson } from "/src/api.js";
 
 const state = {
   session: null,
@@ -9,6 +9,7 @@ const state = {
 const apiLog = document.getElementById("api-log");
 const statusStrip = document.getElementById("status-strip");
 const sessionChip = document.getElementById("session-chip");
+let clocksStarted = false;
 
 function logApi(label, payload) {
   const serialized = JSON.stringify(payload, null, 2);
@@ -19,6 +20,12 @@ function logApi(label, payload) {
 async function loadJson(url) {
   const data = await getJson(url);
   logApi(`GET ${url}`, data);
+  return data;
+}
+
+async function postJson(url, body) {
+  const data = await sendJson(url, { method: "POST", body });
+  logApi(`POST ${url}`, data);
   return data;
 }
 
@@ -35,6 +42,8 @@ function renderClock(targetId, tz) {
 }
 
 function startClocks() {
+  if (clocksStarted) return;
+  clocksStarted = true;
   const tick = () => {
     renderClock("clock-seoul", "Asia/Seoul");
     renderClock("clock-asuncion", "America/Asuncion");
@@ -43,34 +52,43 @@ function startClocks() {
   setInterval(tick, 1000);
 }
 
+function setStatus(message, isError = false) {
+  statusStrip.textContent = message;
+  statusStrip.classList.toggle("error", Boolean(isError));
+}
+
 function renderSession() {
   if (!state.session) return;
   const { currentUser, people, mode } = state.session;
   sessionChip.textContent = `${people[currentUser]} · ${mode}`;
-  statusStrip.textContent = `세션 확인 완료. 현재 사용자는 ${people[currentUser]}이고, Cloudflare pilot은 ${mode} 모드로 동작 중입니다.`;
+  setStatus(`세션 확인 완료. 현재 사용자는 ${people[currentUser]}이고, Cloudflare pilot은 ${mode} 모드로 동작 중입니다.`);
+  document.getElementById("mood-mode-pill").textContent = mode.toUpperCase();
 }
 
 function renderHome() {
   if (!state.home || !state.session) return;
   const { dday, recentPosts, mood, calendar } = state.home;
-  const { people } = state.session;
+  const { people, currentUser } = state.session;
 
   document.getElementById("dday-label").textContent = dday.label;
   document.getElementById("dday-title").textContent = dday.title;
   document.getElementById("dday-progress-text").textContent = dday.progress.text;
   document.getElementById("dday-progress-bar").style.width = `${dday.progress.percent}%`;
+  document.getElementById("dday-form-title").value = dday.title || "";
+  document.getElementById("dday-form-start").value = dday.startDate || "";
+  document.getElementById("dday-form-target").value = dday.targetDate || "";
 
   const moodStrip = document.getElementById("mood-strip");
   moodStrip.innerHTML = Object.entries(mood.latest).map(([key, value]) => `
-    <div class="mood-pill ${key === state.session.currentUser ? "mine" : ""}">
+    <div class="mood-pill ${key === currentUser ? "mine" : ""}">
       <strong>${people[key]}</strong>
-      <span>${value.emoji}</span>
+      <span class="mood-emoji-large">${value.emoji}</span>
     </div>
   `).join("");
 
   const moodPicker = document.getElementById("mood-picker");
   moodPicker.innerHTML = mood.stickers.map((item) => `
-    <button class="emoji-btn ${item.id === mood.today.moodId ? "active" : ""}" type="button">${item.emoji}</button>
+    <button class="emoji-btn ${item.id === mood.today?.moodId ? "active" : ""}" type="button" data-mood-id="${item.id}" title="${item.label}">${item.emoji}</button>
   `).join("");
 
   const recentList = document.getElementById("recent-list");
@@ -80,7 +98,7 @@ function renderHome() {
         <strong>${people[post.owner]}</strong>
         <span class="muted small">${post.recordDate}</span>
       </div>
-      <p>${post.summary}</p>
+      <p>${post.summary || "요약 없음"}</p>
     </article>
   `).join("");
 
@@ -97,6 +115,9 @@ function renderHome() {
         </div>
       `;
     }).join("");
+
+  bindMoodButtons();
+  bindDdayForm();
 }
 
 function renderBoard() {
@@ -120,12 +141,20 @@ function renderBoard() {
       </div>
       <section class="comments-box">
         <h3>댓글</h3>
-        ${post.comments.length ? post.comments.map((comment) => `
-          <p><strong>${people[comment.author]}</strong> · ${comment.content}</p>
-        `).join("") : '<p class="muted small">아직 댓글이 없어요.</p>'}
+        <div class="comment-list">
+          ${post.comments.length ? post.comments.map((comment) => `
+            <p><strong>${people[comment.author] || comment.author}</strong> · ${comment.content}</p>
+          `).join("") : '<p class="muted small">아직 댓글이 없어요.</p>'}
+        </div>
+        <form class="comment-form" data-post-id="${post.id}">
+          <textarea name="content" rows="3" placeholder="짧게 댓글 남기기"></textarea>
+          <button type="submit">댓글 남기기</button>
+        </form>
       </section>
     </article>
   `).join("");
+
+  bindCommentForms();
 }
 
 function bindTabs() {
@@ -136,6 +165,78 @@ function bindTabs() {
       button.classList.add("active");
       document.getElementById(button.dataset.tabTarget)?.classList.add("active");
     });
+  });
+}
+
+function bindMoodButtons() {
+  document.querySelectorAll("[data-mood-id]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        button.disabled = true;
+        setStatus("기분 스티커 저장 중...");
+        const result = await postJson("/api/v1/moods", { moodId: button.dataset.moodId });
+        state.home = result.home;
+        renderHome();
+        setStatus("오늘의 기분 스티커를 저장했습니다.");
+      } catch (error) {
+        setStatus(`기분 스티커 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+      } finally {
+        button.disabled = false;
+      }
+    }, { once: true });
+  });
+}
+
+function bindDdayForm() {
+  const form = document.getElementById("dday-form");
+  if (!form || form.dataset.bound === "true") return;
+  form.dataset.bound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const payload = {
+      title: String(formData.get("title") || "").trim(),
+      startDate: String(formData.get("startDate") || ""),
+      targetDate: String(formData.get("targetDate") || ""),
+    };
+    const submitButton = form.querySelector("button[type='submit']");
+    try {
+      if (submitButton) submitButton.disabled = true;
+      setStatus("D-day 저장 중...");
+      const result = await postJson("/api/v1/dday", payload);
+      state.home = result.home;
+      renderHome();
+      setStatus("D-day 설정을 저장했습니다.");
+    } catch (error) {
+      setStatus(`D-day 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
+function bindCommentForms() {
+  document.querySelectorAll(".comment-form").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const postId = form.dataset.postId;
+      const textarea = form.querySelector("textarea[name='content']");
+      const submitButton = form.querySelector("button[type='submit']");
+      const content = String(textarea?.value || "").trim();
+      if (!content) return;
+      try {
+        if (submitButton) submitButton.disabled = true;
+        setStatus("댓글 저장 중...");
+        const result = await postJson(`/api/v1/posts/${postId}/comments`, { content });
+        state.posts = result.posts;
+        renderBoard();
+        setStatus("댓글을 저장했습니다.");
+      } catch (error) {
+        setStatus(`댓글 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+      } finally {
+        if (submitButton) submitButton.disabled = false;
+      }
+    }, { once: true });
   });
 }
 
@@ -154,7 +255,7 @@ async function boot() {
     renderBoard();
     startClocks();
   } catch (error) {
-    statusStrip.textContent = `초기 로딩 실패: ${error instanceof Error ? error.message : String(error)}`;
+    setStatus(`초기 로딩 실패: ${error instanceof Error ? error.message : String(error)}`, true);
     apiLog.textContent = statusStrip.textContent;
   }
 }
@@ -162,9 +263,9 @@ async function boot() {
 document.getElementById("health-check")?.addEventListener("click", async () => {
   try {
     const data = await loadJson("/api/v1/health");
-    statusStrip.textContent = `헬스 체크 완료: ${data.status}`;
+    setStatus(`헬스 체크 완료: ${data.status}`);
   } catch (error) {
-    statusStrip.textContent = `헬스 체크 실패: ${error instanceof Error ? error.message : String(error)}`;
+    setStatus(`헬스 체크 실패: ${error instanceof Error ? error.message : String(error)}`, true);
   }
 });
 
