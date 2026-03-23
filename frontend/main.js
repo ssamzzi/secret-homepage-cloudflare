@@ -144,6 +144,20 @@ async function loadPersonPage(page = 1) {
   renderPerson();
 }
 
+async function loadBucketPage(page = 1) {
+  const owner = document.getElementById("bucket-owner-filter")?.value || state.bucket?.ownerFilter || "all";
+  const status = document.getElementById("bucket-status-filter")?.value || state.bucket?.statusFilter || "all";
+  state.bucket = await loadJson(`/api/v1/bucket?owner=${owner}&status=${status}&page=${page}&perPage=6`);
+  renderBucket();
+}
+
+async function loadQnaPage(page = 1) {
+  const scope = document.getElementById("qna-scope-filter")?.value || state.qna?.scopeFilter || "all";
+  const progress = document.getElementById("qna-progress-filter")?.value || state.qna?.progressFilter || "all";
+  state.qna = await loadJson(`/api/v1/qna?scope=${scope}&progress=${progress}&page=${page}&perPage=6`);
+  renderQna();
+}
+
 async function goToBoardPost(postId) {
   const pageInfo = await loadJson(`/api/v1/posts/${postId}/page?perPage=6`);
   await loadBoardPage(pageInfo.page || 1);
@@ -278,9 +292,11 @@ function renderBucket() {
     ? state.bucket.items.map((item) => `<article class="card bucket-card ${item.isDone ? "done" : ""}"><div class="row-between"><p class="bucket-owner">${escapeHtml(people[item.owner])}</p>${item.isDone ? '<span class="done-badge">완료</span>' : ""}</div><p class="bucket-text">${escapeHtml(item.content)}</p><div class="action-row"><button type="button" class="small-btn" data-bucket-toggle-id="${item.id}">${item.isDone ? "미완료로" : "완료"}</button><button type="button" class="danger-btn small-btn" data-bucket-delete-id="${item.id}">삭제</button></div></article>`).join("")
     : '<article class="card"><p>아직 버킷리스트가 없어요.</p></article>';
 
+  document.getElementById("bucket-pagination").innerHTML = renderPagination(state.bucket.pagination, "bucket-prev", "bucket-next");
   bindBucketForm();
   bindBucketActions();
   bindBucketFilters();
+  bindBucketPagination();
 }
 
 function renderQna() {
@@ -296,9 +312,11 @@ function renderQna() {
     }).join("")
     : '<article class="card"><p>아직 질문이 없어요.</p></article>';
 
+  document.getElementById("qna-pagination").innerHTML = renderPagination(state.qna.pagination, "qna-prev", "qna-next");
   bindQnaForm();
   bindQnaActions();
   bindQnaFilters();
+  bindQnaPagination();
 }
 
 function renderNotifications() {
@@ -616,8 +634,8 @@ function bindBucketForm() {
     try {
       if (submitButton) submitButton.disabled = true;
       setStatus("버킷리스트 저장 중...");
-      state.bucket = (await postJson("/api/v1/bucket", { content: String(formData.get("content") || "").trim() })).bucket;
-      renderBucket();
+      await postJson("/api/v1/bucket", { content: String(formData.get("content") || "").trim() });
+      await loadBucketPage(1);
       form.reset();
       setStatus("버킷리스트를 추가했습니다.");
     } catch (error) {
@@ -633,15 +651,15 @@ function bindBucketActions() {
     button.addEventListener("click", async () => {
       try {
         button.disabled = true;
-        state.bucket = (await postJson(`/api/v1/bucket/${button.dataset.bucketToggleId}/toggle`, {})).bucket;
-        renderBucket();
+        await postJson(`/api/v1/bucket/${button.dataset.bucketToggleId}/toggle`, {});
+        await loadBucketPage(state.bucket?.pagination?.page || 1);
         setStatus("버킷 상태를 바꿨습니다.");
       } catch (error) {
         setStatus(`버킷 변경 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         button.disabled = false;
       }
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll("[data-bucket-delete-id]").forEach((button) => {
@@ -649,15 +667,15 @@ function bindBucketActions() {
       if (!confirm("이 버킷을 삭제할까요?")) return;
       try {
         button.disabled = true;
-        state.bucket = (await postJson(`/api/v1/bucket/${button.dataset.bucketDeleteId}/delete`, {})).bucket;
-        renderBucket();
+        await postJson(`/api/v1/bucket/${button.dataset.bucketDeleteId}/delete`, {});
+        await loadBucketPage(state.bucket?.pagination?.page || 1);
         setStatus("버킷을 삭제했습니다.");
       } catch (error) {
         setStatus(`버킷 삭제 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         button.disabled = false;
       }
-    }, { once: true });
+    });
   });
 }
 
@@ -669,8 +687,7 @@ function bindBucketFilters() {
     element.dataset.bound = "true";
     element.addEventListener("change", async () => {
       try {
-        state.bucket = await loadJson(`/api/v1/bucket?owner=${owner.value}&status=${status.value}`);
-        renderBucket();
+        await loadBucketPage(1);
       } catch (error) {
         setStatus(`버킷 불러오기 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       }
@@ -688,8 +705,8 @@ function bindQnaForm() {
     try {
       if (submitButton) submitButton.disabled = true;
       setStatus("질문 저장 중...");
-      state.qna = (await postJson("/api/v1/qna", { question: String(formData.get("question") || "").trim() })).qna;
-      renderQna();
+      await postJson("/api/v1/qna", { question: String(formData.get("question") || "").trim() });
+      await loadQnaPage(1);
       form.reset();
       setStatus("질문을 등록했습니다.");
     } catch (error) {
@@ -708,15 +725,15 @@ function bindQnaActions() {
       const formData = new FormData(form);
       try {
         if (submitButton) submitButton.disabled = true;
-        state.qna = (await postJson(`/api/v1/qna/${form.dataset.questionId}/edit`, { question: String(formData.get("question") || "").trim() })).qna;
-        renderQna();
+        await postJson(`/api/v1/qna/${form.dataset.questionId}/edit`, { question: String(formData.get("question") || "").trim() });
+        await loadQnaPage(state.qna?.pagination?.page || 1);
         setStatus("질문을 수정했습니다.");
       } catch (error) {
         setStatus(`질문 수정 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll(".qna-answer-form").forEach((form) => {
@@ -726,15 +743,15 @@ function bindQnaActions() {
       const formData = new FormData(form);
       try {
         if (submitButton) submitButton.disabled = true;
-        state.qna = (await postJson(`/api/v1/qna/${form.dataset.questionId}/answer`, { answer: String(formData.get("answer") || "").trim() })).qna;
-        renderQna();
+        await postJson(`/api/v1/qna/${form.dataset.questionId}/answer`, { answer: String(formData.get("answer") || "").trim() });
+        await loadQnaPage(state.qna?.pagination?.page || 1);
         setStatus("답변을 저장했습니다.");
       } catch (error) {
         setStatus(`답변 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll("[data-qna-delete-id]").forEach((button) => {
@@ -742,15 +759,15 @@ function bindQnaActions() {
       if (!confirm("이 질문을 삭제할까요?")) return;
       try {
         button.disabled = true;
-        state.qna = (await postJson(`/api/v1/qna/${button.dataset.qnaDeleteId}/delete`, {})).qna;
-        renderQna();
+        await postJson(`/api/v1/qna/${button.dataset.qnaDeleteId}/delete`, {});
+        await loadQnaPage(state.qna?.pagination?.page || 1);
         setStatus("질문을 삭제했습니다.");
       } catch (error) {
         setStatus(`질문 삭제 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         button.disabled = false;
       }
-    }, { once: true });
+    });
   });
 
   document.querySelectorAll("[data-answer-delete-id]").forEach((button) => {
@@ -758,15 +775,15 @@ function bindQnaActions() {
       if (!confirm("이 답변을 삭제할까요?")) return;
       try {
         button.disabled = true;
-        state.qna = (await postJson(`/api/v1/qna/${button.dataset.answerDeleteId}/answer/delete`, {})).qna;
-        renderQna();
+        await postJson(`/api/v1/qna/${button.dataset.answerDeleteId}/answer/delete`, {});
+        await loadQnaPage(state.qna?.pagination?.page || 1);
         setStatus("답변을 삭제했습니다.");
       } catch (error) {
         setStatus(`답변 삭제 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
         button.disabled = false;
       }
-    }, { once: true });
+    });
   });
 }
 
@@ -778,8 +795,7 @@ function bindQnaFilters() {
     element.dataset.bound = "true";
     element.addEventListener("change", async () => {
       try {
-        state.qna = await loadJson(`/api/v1/qna?scope=${scope.value}&progress=${progress.value}`);
-        renderQna();
+        await loadQnaPage(1);
       } catch (error) {
         setStatus(`질문 불러오기 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       }
@@ -862,13 +878,31 @@ function bindBoardPagination() {
   }, { once: true });
 }
 
+function bindBucketPagination() {
+  document.getElementById("bucket-prev")?.addEventListener("click", async () => {
+    await loadBucketPage((state.bucket?.pagination?.page || 1) - 1);
+  }, { once: true });
+  document.getElementById("bucket-next")?.addEventListener("click", async () => {
+    await loadBucketPage((state.bucket?.pagination?.page || 1) + 1);
+  }, { once: true });
+}
+
+function bindQnaPagination() {
+  document.getElementById("qna-prev")?.addEventListener("click", async () => {
+    await loadQnaPage((state.qna?.pagination?.page || 1) - 1);
+  }, { once: true });
+  document.getElementById("qna-next")?.addEventListener("click", async () => {
+    await loadQnaPage((state.qna?.pagination?.page || 1) + 1);
+  }, { once: true });
+}
+
 async function loadAppData() {
   const [home, person, posts, bucket, qna, notifications] = await Promise.all([
     loadJson("/api/v1/home"),
     loadJson(`/api/v1/person/${state.session.currentUser}?page=1&perPage=6`),
     loadJson("/api/v1/posts?page=1&perPage=6"),
-    loadJson("/api/v1/bucket"),
-    loadJson("/api/v1/qna"),
+    loadJson("/api/v1/bucket?page=1&perPage=6"),
+    loadJson("/api/v1/qna?page=1&perPage=6"),
     loadJson("/api/v1/notifications"),
   ]);
   state.home = home;

@@ -115,13 +115,13 @@ export async function handleApi(request, env) {
 
   if (request.method === "GET" && url.pathname === "/api/v1/bucket") {
     if (!useReal) return json({ ...bucketPayload, mode: runtime.mode, runtime });
-    try { return json({ ...(await fetchBucketData(env, { actor: session.currentUser, ownerFilter: url.searchParams.get("owner") || "all", statusFilter: url.searchParams.get("status") || "all", page: url.searchParams.get("page") || 1, perPage: 15 })), mode: runtime.mode, runtime }); }
+    try { return json({ ...(await fetchBucketData(env, { actor: session.currentUser, ownerFilter: url.searchParams.get("owner") || "all", statusFilter: url.searchParams.get("status") || "all", page: url.searchParams.get("page") || 1, perPage: url.searchParams.get("perPage") || 6 })), mode: runtime.mode, runtime }); }
     catch (error) { return json({ error: "BUCKET_FETCH_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 
   if (request.method === "GET" && url.pathname === "/api/v1/qna") {
     if (!useReal) return json({ ...qnaPayload, mode: runtime.mode, runtime });
-    try { return json({ ...(await fetchQnaData(env, { actor: session.currentUser, scopeFilter: url.searchParams.get("scope") || "all", progressFilter: url.searchParams.get("progress") || "all", page: url.searchParams.get("page") || 1, perPage: 15 })), mode: runtime.mode, runtime }); }
+    try { return json({ ...(await fetchQnaData(env, { actor: session.currentUser, scopeFilter: url.searchParams.get("scope") || "all", progressFilter: url.searchParams.get("progress") || "all", page: url.searchParams.get("page") || 1, perPage: url.searchParams.get("perPage") || 6 })), mode: runtime.mode, runtime }); }
     catch (error) { return json({ error: "QNA_FETCH_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 

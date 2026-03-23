@@ -235,7 +235,7 @@ export async function fetchPersonData(env, { owner = "you", page = 1, perPage = 
   return { owner, ownerName: people[owner] || owner, isMyPage: owner === "you", posts: posts.map((post) => normalizePostItem(post, commentsMap, imagesMap, now)), pagination: { page: safePage, perPage: safePerPage, totalPages, totalItems } };
 }
 
-export async function fetchBucketData(env, { actor, ownerFilter = "all", statusFilter = "all", page = 1, perPage = 15 } = {}) {
+export async function fetchBucketData(env, { actor, ownerFilter = "all", statusFilter = "all", page = 1, perPage = 6 } = {}) {
   getRequiredSupabaseEnv(env);
   const result = await fetchRows(env, "bucket_items", { params: { select: "id,owner,content,is_done,created_at", order: "is_done.asc,id.desc", limit: 500 } });
   const items = (result.data || []).map((item) => ({ id: item.id, owner: item.owner, content: item.content, isDone: Boolean(item.is_done), createdAt: item.created_at }));
@@ -248,7 +248,7 @@ export async function fetchBucketData(env, { actor, ownerFilter = "all", statusF
   return { items: paged.items, ownerFilter, statusFilter, pagination: paged.pagination };
 }
 
-export async function fetchQnaData(env, { actor, scopeFilter = "all", progressFilter = "all", page = 1, perPage = 15 } = {}) {
+export async function fetchQnaData(env, { actor, scopeFilter = "all", progressFilter = "all", page = 1, perPage = 6 } = {}) {
   getRequiredSupabaseEnv(env);
   const result = await fetchRows(env, "qna", { params: { select: "id,author,target,question,answer,answered_by,created_at,answered_at", order: "id.desc", limit: 500 } });
   const items = (result.data || []).map((item) => ({ id: item.id, author: item.author, target: item.target, question: item.question, answer: item.answer, answeredBy: item.answered_by, createdAt: item.created_at, answeredAt: item.answered_at }));
@@ -583,7 +583,7 @@ export async function createBucketItem(env, { owner, content }) {
   const safeContent = String(content || "").trim();
   if (!safeContent) throw new Error("Missing bucket content");
   await mutateRows(env, "bucket_items", { method: "POST", headers: { Prefer: "return=representation" }, body: { owner, content: safeContent, created_at: nowIso() } });
-  return fetchBucketData(env, { actor: owner });
+  return fetchBucketData(env, { actor: owner, page: 1, perPage: 6 });
 }
 
 export async function toggleBucketItemById(env, { itemId, actor }) {
@@ -592,13 +592,13 @@ export async function toggleBucketItemById(env, { itemId, actor }) {
   const item = result.data?.[0];
   if (!item) throw new Error("Bucket item not found");
   await mutateRows(env, "bucket_items", { method: "PATCH", params: { id: `eq.${Number(itemId)}` }, headers: { Prefer: "return=representation" }, body: { is_done: !item.is_done } });
-  return fetchBucketData(env, { actor });
+  return fetchBucketData(env, { actor, page: 1, perPage: 6 });
 }
 
 export async function deleteBucketItemById(env, { itemId, actor }) {
   getRequiredSupabaseEnv(env);
   await mutateRows(env, "bucket_items", { method: "DELETE", params: { id: `eq.${Number(itemId)}` }, headers: { Prefer: "return=minimal" } });
-  return fetchBucketData(env, { actor });
+  return fetchBucketData(env, { actor, page: 1, perPage: 6 });
 }
 
 export async function createQuestion(env, { actor, question }) {
@@ -607,7 +607,7 @@ export async function createQuestion(env, { actor, question }) {
   if (!safeQuestion) throw new Error("Missing question");
   const target = actor === "you" ? "partner" : "you";
   await mutateRows(env, "qna", { method: "POST", headers: { Prefer: "return=representation" }, body: { author: actor, target, question: safeQuestion, created_at: nowIso() } });
-  return fetchQnaData(env, { actor });
+  return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
 
 export async function editQuestionById(env, { questionId, actor, question }) {
@@ -618,7 +618,7 @@ export async function editQuestionById(env, { questionId, actor, question }) {
   if (!existing) throw new Error("Question not found");
   if (existing.author !== actor) throw new Error("No permission to edit this question");
   await mutateRows(env, "qna", { method: "PATCH", params: { id: `eq.${Number(questionId)}` }, headers: { Prefer: "return=representation" }, body: { question: safeQuestion } });
-  return fetchQnaData(env, { actor });
+  return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
 
 export async function deleteQuestionById(env, { questionId, actor }) {
@@ -627,7 +627,7 @@ export async function deleteQuestionById(env, { questionId, actor }) {
   if (!existing) throw new Error("Question not found");
   if (existing.author !== actor) throw new Error("No permission to delete this question");
   await mutateRows(env, "qna", { method: "DELETE", params: { id: `eq.${Number(questionId)}` }, headers: { Prefer: "return=minimal" } });
-  return fetchQnaData(env, { actor });
+  return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
 
 export async function saveAnswerByQuestionId(env, { questionId, actor, answer }) {
@@ -638,7 +638,7 @@ export async function saveAnswerByQuestionId(env, { questionId, actor, answer })
   if (!existing) throw new Error("Question not found");
   if (existing.target !== actor && existing.answered_by !== actor) throw new Error("No permission to answer this question");
   await mutateRows(env, "qna", { method: "PATCH", params: { id: `eq.${Number(questionId)}` }, headers: { Prefer: "return=representation" }, body: { answer: safeAnswer, answered_by: actor, answered_at: nowIso() } });
-  return fetchQnaData(env, { actor });
+  return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
 
 export async function clearAnswerByQuestionId(env, { questionId, actor }) {
@@ -647,5 +647,5 @@ export async function clearAnswerByQuestionId(env, { questionId, actor }) {
   if (!existing) throw new Error("Question not found");
   if (existing.answered_by !== actor) throw new Error("No permission to delete this answer");
   await mutateRows(env, "qna", { method: "PATCH", params: { id: `eq.${Number(questionId)}` }, headers: { Prefer: "return=representation" }, body: { answer: null, answered_by: null, answered_at: null } });
-  return fetchQnaData(env, { actor });
+  return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
