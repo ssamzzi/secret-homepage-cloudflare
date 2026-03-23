@@ -18,6 +18,7 @@ const identityPanel = document.getElementById("identity-panel");
 const appContent = document.getElementById("app-content");
 let clocksStarted = false;
 let statusTimer = null;
+let currentHomeMonthKey = "";
 
 function logApi(label, payload) {
   if (!apiLog) return;
@@ -82,12 +83,32 @@ function renderClock(targetId, tz) {
   }).format(new Date());
 }
 
+function currentMonthKeyInTimezone(timeZone = "Asia/Seoul") {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}`;
+}
+
 function startClocks() {
   if (clocksStarted) return;
   clocksStarted = true;
-  const tick = () => {
+  const tick = async () => {
     renderClock("clock-seoul", "Asia/Seoul");
     renderClock("clock-asuncion", "America/Asuncion");
+    const latestMonthKey = currentMonthKeyInTimezone("Asia/Seoul");
+    if (state.session?.authenticated && state.session?.currentUser && state.home && currentHomeMonthKey && currentHomeMonthKey !== latestMonthKey) {
+      currentHomeMonthKey = latestMonthKey;
+      try {
+        state.home = await loadJson("/api/v1/home");
+        renderHome();
+      } catch (error) {
+        setStatus(`달력 갱신 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+      }
+    }
   };
   tick();
   setInterval(tick, 1000);
@@ -204,6 +225,7 @@ function renderHome() {
     .join("");
 
   document.getElementById("calendar-title").textContent = `${calendar.currentMonth} 달력`;
+  currentHomeMonthKey = calendar.currentMonth;
   const weekNames = ["일", "월", "화", "수", "목", "금", "토"];
   document.getElementById("calendar-grid").innerHTML = weekNames.map((day) => `<div class="week-header">${day}</div>`).join("") + calendar.weeks.flat().map((cell) => {
     const posts = calendar.dateMap[cell.date] || [];

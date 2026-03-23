@@ -137,6 +137,18 @@ button,
   font-weight: 700;
 }
 
+.mini-post {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0 0 4px;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .pill.alt {
   background: #fae5ea;
   color: var(--accent);
@@ -781,6 +793,15 @@ pre {
   .mood-picker { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .calendar-grid { gap: 6px; }
   .day-cell { min-height: 84px; }
+  .mini-post {
+    display: block;
+    width: 100%;
+    padding: 4px 6px;
+    text-align: center;
+    font-size: 0.7rem;
+    white-space: normal;
+    word-break: keep-all;
+  }
   .post-actions { justify-content: stretch; }
   .post-actions .danger-btn { width: 100%; }
   .mini-action { width: 100%; }
