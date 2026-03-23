@@ -3,6 +3,7 @@
 const state = {
   session: null,
   home: null,
+  person: null,
   posts: null,
 };
 
@@ -120,6 +121,62 @@ function renderHome() {
   bindDdayForm();
 }
 
+function renderPerson() {
+  if (!state.person || !state.session) return;
+  const { people } = state.session;
+  const { owner, ownerName, posts } = state.person;
+
+  document.getElementById("person-title").textContent = `${ownerName} 페이지`;
+  const recordDateInput = document.getElementById("person-record-date");
+  if (!recordDateInput.value) {
+    recordDateInput.value = new Date().toISOString().slice(0, 10);
+  }
+
+  const personPosts = document.getElementById("person-posts");
+  personPosts.innerHTML = posts.length
+    ? posts.map((post) => `
+      <article class="card person-post-card">
+        <div class="row-between section-head compact">
+          <strong>${ownerName} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong>
+          <span class="muted small">${post.recordDate}</span>
+        </div>
+        ${post.images.length ? `
+          <div class="image-stack">
+            ${post.images.map((src) => `<img src="${src}" alt="게시물 이미지" />`).join("")}
+          </div>
+        ` : ""}
+        <p class="post-content">${post.content}</p>
+        <details class="editor-box person-edit-box">
+          <summary>수정</summary>
+          <form class="stack-form post-edit-form" data-post-id="${post.id}">
+            <label>
+              <span>기록 날짜</span>
+              <input type="date" name="recordDate" value="${post.recordDate}" required />
+            </label>
+            <label>
+              <span>내용</span>
+              <textarea name="content" rows="4" required>${post.content}</textarea>
+            </label>
+            <button type="submit">수정 저장</button>
+          </form>
+        </details>
+        <div class="post-actions">
+          <button type="button" class="danger-btn" data-delete-post-id="${post.id}">삭제</button>
+        </div>
+        <div class="comment-list compact-comments">
+          ${post.comments.length ? post.comments.map((comment) => `
+            <p><strong>${people[comment.author] || comment.author}</strong> · ${comment.content}</p>
+          `).join("") : '<p class="muted small">댓글은 보드에서 달 수 있어요.</p>'}
+        </div>
+      </article>
+    `).join("")
+    : '<article class="card"><p>아직 기록이 없어요.</p></article>';
+
+  bindPersonCreateForm();
+  bindPostEditForms(owner);
+  bindPostDeleteButtons(owner);
+}
+
 function renderBoard() {
   if (!state.posts || !state.session) return;
   const { items } = state.posts;
@@ -206,12 +263,90 @@ function bindDdayForm() {
       const result = await postJson("/api/v1/dday", payload);
       state.home = result.home;
       renderHome();
+      document.getElementById("dday-editor")?.removeAttribute("open");
       setStatus("D-day 설정을 저장했습니다.");
     } catch (error) {
       setStatus(`D-day 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
+  });
+}
+
+function bindPersonCreateForm() {
+  const form = document.getElementById("person-post-form");
+  if (!form || form.dataset.bound === "true") return;
+  form.dataset.bound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const payload = {
+      recordDate: String(formData.get("recordDate") || ""),
+      content: String(formData.get("content") || "").trim(),
+    };
+    const submitButton = form.querySelector("button[type='submit']");
+    try {
+      if (submitButton) submitButton.disabled = true;
+      setStatus("기록 저장 중...");
+      const result = await postJson(`/api/v1/person/${state.session.currentUser}/posts`, payload);
+      state.person = result.person;
+      renderPerson();
+      form.reset();
+      document.getElementById("person-record-date").value = new Date().toISOString().slice(0, 10);
+      setStatus("기록을 저장했습니다.");
+    } catch (error) {
+      setStatus(`기록 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
+function bindPostEditForms(owner) {
+  document.querySelectorAll(".post-edit-form").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const postId = form.dataset.postId;
+      const formData = new FormData(form);
+      const payload = {
+        recordDate: String(formData.get("recordDate") || ""),
+        content: String(formData.get("content") || "").trim(),
+      };
+      const submitButton = form.querySelector("button[type='submit']");
+      try {
+        if (submitButton) submitButton.disabled = true;
+        setStatus("글 수정 중...");
+        const result = await postJson(`/api/v1/posts/${postId}/edit`, payload);
+        state.person = result.person;
+        renderPerson();
+        setStatus("글을 수정했습니다.");
+      } catch (error) {
+        setStatus(`글 수정 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+      } finally {
+        if (submitButton) submitButton.disabled = false;
+      }
+    }, { once: true });
+  });
+}
+
+function bindPostDeleteButtons(owner) {
+  document.querySelectorAll("[data-delete-post-id]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const ok = confirm("이 기록을 삭제할까요?");
+      if (!ok) return;
+      try {
+        button.disabled = true;
+        setStatus("글 삭제 중...");
+        const result = await postJson(`/api/v1/posts/${button.dataset.deletePostId}/delete`, {});
+        state.person = result.person;
+        renderPerson();
+        setStatus("글을 삭제했습니다.");
+      } catch (error) {
+        setStatus(`글 삭제 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+      } finally {
+        button.disabled = false;
+      }
+    }, { once: true });
   });
 }
 
@@ -242,16 +377,19 @@ function bindCommentForms() {
 
 async function boot() {
   try {
-    const [session, home, posts] = await Promise.all([
-      loadJson("/api/v1/session"),
+    const session = await loadJson("/api/v1/session");
+    state.session = session;
+    const [home, person, posts] = await Promise.all([
       loadJson("/api/v1/home"),
+      loadJson(`/api/v1/person/${session.currentUser}`),
       loadJson("/api/v1/posts"),
     ]);
-    state.session = session;
     state.home = home;
+    state.person = person;
     state.posts = posts;
     renderSession();
     renderHome();
+    renderPerson();
     renderBoard();
     startClocks();
   } catch (error) {

@@ -13,7 +13,7 @@
         <div class="hero-head">
           <div>
             <h1>강구현지원</h1>
-            <p class="lead">기존 Render 사이트는 그대로 두고, Cloudflare에서 Home과 Board를 먼저 병행 구현하는 실험 버전입니다.</p>
+            <p class="lead">기존 Render 사이트는 그대로 두고, Cloudflare에서 원래 사이트의 핵심 기능을 순서대로 옮기고 있습니다.</p>
           </div>
           <div class="hero-badge" id="session-chip">세션 확인 중...</div>
         </div>
@@ -21,6 +21,7 @@
 
       <nav class="top-tabs card">
         <button class="tab-btn active" type="button" data-tab-target="home-panel">홈</button>
+        <button class="tab-btn" type="button" data-tab-target="person-panel">내 기록</button>
         <button class="tab-btn" type="button" data-tab-target="board-panel">우리의 일상들</button>
         <button class="tab-btn ghost" type="button" id="health-check">API 확인</button>
       </nav>
@@ -43,7 +44,7 @@
               </div>
               <div class="progress-bar"><span id="dday-progress-bar" style="width: 0%"></span></div>
             </div>
-            <details class="editor-box">
+            <details class="editor-box" id="dday-editor">
               <summary>D-day 설정 수정</summary>
               <form id="dday-form" class="stack-form">
                 <label>
@@ -109,6 +110,32 @@
             <div class="calendar-grid" id="calendar-grid"></div>
           </details>
         </article>
+      </section>
+
+      <section class="panel" id="person-panel">
+        <article class="card person-head">
+          <div class="row-between section-head">
+            <h2 id="person-title">내 기록</h2>
+            <span class="pill alt">Person</span>
+          </div>
+          <p class="lead small">원래 사이트의 개인 페이지 흐름을 Cloudflare 쪽으로 옮기는 중입니다. 현재는 글 작성, 수정, 삭제까지 연결합니다.</p>
+        </article>
+
+        <article class="card compose-card">
+          <form id="person-post-form" class="stack-form">
+            <label>
+              <span>기록 날짜</span>
+              <input type="date" name="recordDate" id="person-record-date" required />
+            </label>
+            <label>
+              <span>내용</span>
+              <textarea name="content" id="person-content" rows="5" placeholder="오늘의 시간을 적어주세요" required></textarea>
+            </label>
+            <button type="submit">기록 저장</button>
+          </form>
+        </article>
+
+        <section class="stack-list" id="person-posts"></section>
       </section>
 
       <section class="panel" id="board-panel">

@@ -39,8 +39,11 @@ body {
 .top-tabs,
 .status-strip,
 .api-log-card,
+.person-head,
+.compose-card,
 .board-head,
 .post-card,
+.person-post-card,
 .dday-card,
 .clocks-card,
 .mood-card,
@@ -95,7 +98,8 @@ h1 {
 .emoji-btn,
 .mini-post,
 .new-badge,
-button {
+button,
+.danger-btn {
   border-radius: 999px;
 }
 
@@ -124,7 +128,8 @@ button {
 .emoji-btn,
 button,
 input,
-textarea {
+textarea,
+.danger-btn {
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
@@ -133,7 +138,8 @@ textarea {
 
 .tab-btn,
 button,
-.emoji-btn {
+.emoji-btn,
+.danger-btn {
   cursor: pointer;
 }
 
@@ -168,12 +174,14 @@ button,
 
 .panel.active { display: block; }
 
-.grid-two {
-  gap: 16px;
-}
-
+.grid-two { gap: 16px; }
 .grid-two > * { flex: 1 1 0; }
 .lower-grid { margin-top: 16px; }
+.stack-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
 
 .dday-value {
   margin: 6px 0 8px;
@@ -183,14 +191,12 @@ button,
 }
 
 .progress-wrap { margin-top: 16px; }
-
 .progress-head {
   display: flex;
   justify-content: space-between;
   color: var(--muted);
   font-size: 0.92rem;
 }
-
 .progress-bar {
   margin-top: 8px;
   height: 12px;
@@ -198,7 +204,6 @@ button,
   overflow: hidden;
   background: #ebdff1;
 }
-
 .progress-bar span {
   display: block;
   height: 100%;
@@ -210,46 +215,47 @@ button,
   border-top: 1px dashed var(--line);
   padding-top: 14px;
 }
-
 .editor-box summary {
   cursor: pointer;
   font-weight: 700;
 }
-
 .stack-form {
   display: grid;
   gap: 12px;
   margin-top: 14px;
 }
-
 .stack-form label {
   display: grid;
   gap: 6px;
 }
-
 input,
 textarea,
-button {
+button,
+.danger-btn {
   width: 100%;
   padding: 11px 13px;
   border-radius: 14px;
 }
-
 textarea {
   resize: vertical;
   min-height: 80px;
 }
-
 button:hover,
 .tab-btn:hover,
-.emoji-btn:hover {
+.emoji-btn:hover,
+.danger-btn:hover {
   filter: brightness(0.98);
 }
-
 button:disabled,
-.emoji-btn:disabled {
+.emoji-btn:disabled,
+.danger-btn:disabled {
   opacity: 0.55;
   cursor: wait;
+}
+.danger-btn {
+  background: #fff1f4;
+  color: var(--danger);
+  border-color: #efc8d3;
 }
 
 .clock-grid { gap: 16px; }
@@ -260,12 +266,10 @@ button:disabled,
   background: #fff8fb;
   border: 1px solid #ead8e0;
 }
-
 .clock-label {
   margin-bottom: 8px;
   color: var(--muted);
 }
-
 .clock-time {
   margin: 0;
   font-size: clamp(1.5rem, 3vw, 2rem);
@@ -278,11 +282,9 @@ button:disabled,
   display: grid;
   gap: 12px;
 }
-
 .mood-strip {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
 .mood-pill {
   display: flex;
   align-items: center;
@@ -291,27 +293,22 @@ button:disabled,
   background: #f8eef9;
   border: 1px solid #ecd8ef;
 }
-
 .mood-pill.mine {
   background: #f2e5ff;
   border-color: #d9c0ef;
 }
-
 .mood-emoji-large {
   font-size: 2rem;
   line-height: 1;
 }
-
 .mood-picker {
   margin-top: 14px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
-
 .emoji-btn {
   min-height: 48px;
   font-size: 1.15rem;
 }
-
 .emoji-btn.active {
   background: #f3e5ff;
   border-color: #ceb0eb;
@@ -321,21 +318,18 @@ button:disabled,
   display: grid;
   gap: 12px;
 }
-
 .recent-item {
   padding: 14px;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: #fff;
 }
-
 .recent-item p {
   margin-bottom: 0;
   line-height: 1.7;
 }
 
 .calendar-card { margin-top: 16px; }
-
 .calendar-summary {
   display: flex;
   align-items: center;
@@ -344,20 +338,17 @@ button:disabled,
   cursor: pointer;
   font-weight: 700;
 }
-
 .calendar-grid {
   margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
 }
-
 .week-header {
   text-align: center;
   font-weight: 700;
   color: var(--accent-2);
 }
-
 .day-cell {
   min-height: 102px;
   padding: 8px;
@@ -365,14 +356,17 @@ button:disabled,
   border: 1px solid var(--line);
   background: #fff;
 }
-
 .day-cell.dim { opacity: 0.45; }
 .day-number {
   margin: 0 0 8px;
   font-weight: 800;
 }
 
-.board-head { margin-bottom: 16px; }
+.board-head,
+.person-head,
+.compose-card {
+  margin-bottom: 16px;
+}
 .board-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
 .image-stack {
@@ -380,7 +374,6 @@ button:disabled,
   gap: 8px;
   margin-bottom: 12px;
 }
-
 .image-stack img {
   width: 100%;
   border-radius: 18px;
@@ -388,17 +381,35 @@ button:disabled,
   display: block;
 }
 
-.note {
+.note,
+.person-post-card {
   padding: 16px;
   border-radius: 18px;
+}
+.note {
   background: #fff9cf;
   border: 1px solid #e8dd98;
   box-shadow: 0 12px 20px rgba(72, 60, 16, 0.08);
 }
-
-.note p {
+.note p,
+.post-content {
   margin: 0;
   line-height: 1.8;
+}
+.person-post-card {
+  border: 1px solid var(--line);
+}
+.post-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+.post-actions .danger-btn {
+  width: auto;
+  min-width: 120px;
+}
+.compact-comments {
+  margin-top: 14px;
 }
 
 .comments-box {
@@ -408,14 +419,12 @@ button:disabled,
   background: #faf4ff;
   border: 1px solid #eadcf7;
 }
-
 .comments-box h3 { margin-bottom: 10px; }
 .comment-list {
   display: grid;
   gap: 8px;
 }
 .comment-list p:last-child { margin-bottom: 0; }
-
 .comment-form {
   display: grid;
   gap: 10px;
@@ -440,7 +449,6 @@ pre {
   color: #f4ecf8;
   overflow: auto;
 }
-
 .api-log-summary {
   display: flex;
   justify-content: space-between;
@@ -449,7 +457,6 @@ pre {
   cursor: pointer;
   font-weight: 700;
 }
-
 .api-log-card pre {
   margin-top: 12px;
   max-height: 220px;
@@ -474,4 +481,6 @@ pre {
   .mood-picker { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .calendar-grid { gap: 6px; }
   .day-cell { min-height: 84px; }
+  .post-actions { justify-content: stretch; }
+  .post-actions .danger-btn { width: 100%; }
 }

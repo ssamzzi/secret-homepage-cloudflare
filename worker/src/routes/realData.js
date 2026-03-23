@@ -1,5 +1,5 @@
 ﻿import { fetchRows, getRequiredSupabaseEnv, mutateRows } from "../lib/supabase.js";
-import { moodStickers } from "../mock/data.js";
+import { moodStickers, people } from "../mock/data.js";
 
 function startOfMonth(monthText) {
   if (/^\d{4}-\d{2}$/.test(monthText || "")) {
@@ -39,6 +39,12 @@ function currentDateInTimezone(timeZone = "Asia/Seoul") {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function buildPostSummary(content) {
+  const cleaned = String(content || "").replace(/\s+/g, " ").trim();
+  if (cleaned.length <= 120) return cleaned;
+  return `${cleaned.slice(0, 117)}...`;
 }
 
 function buildCalendar(monthStart, posts) {
@@ -117,6 +123,79 @@ function buildDdayPayload(row) {
   };
 }
 
+function groupBy(items, key) {
+  const out = {};
+  for (const item of items) {
+    const groupKey = String(item[key]);
+    if (!out[groupKey]) out[groupKey] = [];
+    out[groupKey].push(item);
+  }
+  return out;
+}
+
+function normalizePostItem(post, commentsMap, imagesMap, now = Date.now()) {
+  return {
+    id: post.id,
+    owner: post.owner,
+    content: post.content,
+    summary: post.summary,
+    recordDate: post.record_date,
+    createdAt: post.created_at,
+    isNew: now - new Date(post.created_at).getTime() < 86400000,
+    images: (imagesMap[String(post.id)] || []).map((item) => item.image_path),
+    comments: (commentsMap[String(post.id)] || []).map((item) => ({
+      id: item.id,
+      author: item.author,
+      content: item.content,
+      createdAt: item.created_at,
+    })),
+  };
+}
+
+async function fetchRelatedForPosts(env, posts) {
+  const ids = posts.map((post) => post.id);
+  let comments = [];
+  let images = [];
+
+  if (ids.length) {
+    const idList = ids.join(",");
+    const [commentsResult, imagesResult] = await Promise.all([
+      fetchRows(env, "comments", {
+        params: {
+          select: "id,post_id,author,content,created_at",
+          post_id: `in.(${idList})`,
+          order: "id.asc",
+        },
+      }),
+      fetchRows(env, "posts_images", {
+        params: {
+          select: "id,post_id,image_path,sort_order,created_at",
+          post_id: `in.(${idList})`,
+          order: "sort_order.asc,id.asc",
+        },
+      }),
+    ]);
+    comments = commentsResult.data || [];
+    images = imagesResult.data || [];
+  }
+
+  return {
+    commentsMap: groupBy(comments, "post_id"),
+    imagesMap: groupBy(images, "post_id"),
+  };
+}
+
+async function fetchPostOwner(env, postId) {
+  const result = await fetchRows(env, "posts", {
+    params: {
+      select: "id,owner",
+      id: `eq.${Number(postId)}`,
+      limit: 1,
+    },
+  });
+  return result.data?.[0] || null;
+}
+
 export async function fetchHomeData(env, monthText) {
   getRequiredSupabaseEnv(env);
   const monthStart = startOfMonth(monthText);
@@ -170,16 +249,6 @@ export async function fetchHomeData(env, monthText) {
   };
 }
 
-function groupBy(items, key) {
-  const out = {};
-  for (const item of items) {
-    const groupKey = String(item[key]);
-    if (!out[groupKey]) out[groupKey] = [];
-    out[groupKey].push(item);
-  }
-  return out;
-}
-
 export async function fetchPostsData(env, { page = 1, perPage = 6 } = {}) {
   getRequiredSupabaseEnv(env);
   const safePage = Math.max(1, Number(page) || 1);
@@ -199,55 +268,52 @@ export async function fetchPostsData(env, { page = 1, perPage = 6 } = {}) {
   });
 
   const posts = postsResult.data || [];
-  const ids = posts.map((post) => post.id);
-  let comments = [];
-  let images = [];
-
-  if (ids.length) {
-    const idList = ids.join(",");
-    const [commentsResult, imagesResult] = await Promise.all([
-      fetchRows(env, "comments", {
-        params: {
-          select: "id,post_id,author,content,created_at",
-          post_id: `in.(${idList})`,
-          order: "id.asc",
-        },
-      }),
-      fetchRows(env, "posts_images", {
-        params: {
-          select: "id,post_id,image_path,sort_order,created_at",
-          post_id: `in.(${idList})`,
-          order: "sort_order.asc,id.asc",
-        },
-      }),
-    ]);
-    comments = commentsResult.data || [];
-    images = imagesResult.data || [];
-  }
-
-  const commentsMap = groupBy(comments, "post_id");
-  const imagesMap = groupBy(images, "post_id");
-  const totalItems = Number((postsResult.headers.get("content-range") || `0-0/${ids.length}`).split("/")[1] || ids.length);
+  const { commentsMap, imagesMap } = await fetchRelatedForPosts(env, posts);
+  const totalItems = Number((postsResult.headers.get("content-range") || `0-0/${posts.length}`).split("/")[1] || posts.length);
   const totalPages = Math.max(1, Math.ceil(totalItems / safePerPage));
   const now = Date.now();
 
   return {
-    items: posts.map((post) => ({
-      id: post.id,
-      owner: post.owner,
-      content: post.content,
-      summary: post.summary,
-      recordDate: post.record_date,
-      createdAt: post.created_at,
-      isNew: now - new Date(post.created_at).getTime() < 86400000,
-      images: (imagesMap[String(post.id)] || []).map((item) => item.image_path),
-      comments: (commentsMap[String(post.id)] || []).map((item) => ({
-        id: item.id,
-        author: item.author,
-        content: item.content,
-        createdAt: item.created_at,
-      })),
-    })),
+    items: posts.map((post) => normalizePostItem(post, commentsMap, imagesMap, now)),
+    pagination: {
+      page: safePage,
+      perPage: safePerPage,
+      totalPages,
+      totalItems,
+    },
+  };
+}
+
+export async function fetchPersonData(env, { owner = "you", page = 1, perPage = 15 } = {}) {
+  getRequiredSupabaseEnv(env);
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePerPage = Math.max(1, Math.min(30, Number(perPage) || 15));
+  const from = (safePage - 1) * safePerPage;
+
+  const postsResult = await fetchRows(env, "posts", {
+    params: {
+      select: "id,owner,content,summary,record_date,created_at",
+      owner: `eq.${owner}`,
+      order: "id.desc",
+      limit: safePerPage,
+      offset: from,
+    },
+    headers: {
+      Prefer: "count=exact",
+    },
+  });
+
+  const posts = postsResult.data || [];
+  const { commentsMap, imagesMap } = await fetchRelatedForPosts(env, posts);
+  const totalItems = Number((postsResult.headers.get("content-range") || `0-0/${posts.length}`).split("/")[1] || posts.length);
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePerPage));
+  const now = Date.now();
+
+  return {
+    owner,
+    ownerName: people[owner] || owner,
+    isMyPage: owner === "you",
+    posts: posts.map((post) => normalizePostItem(post, commentsMap, imagesMap, now)),
     pagination: {
       page: safePage,
       perPage: safePerPage,
@@ -336,3 +402,80 @@ export async function saveComment(env, { postId, author = "you", content }) {
   return fetchPostsData(env, { page: 1, perPage: 6 });
 }
 
+export async function createPost(env, { owner = "you", content, recordDate }) {
+  getRequiredSupabaseEnv(env);
+  const safeContent = String(content || "").trim();
+  const safeRecordDate = String(recordDate || "").trim();
+  if (!safeContent || !safeRecordDate) {
+    throw new Error("Missing post fields");
+  }
+
+  await mutateRows(env, "posts", {
+    method: "POST",
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: {
+      owner,
+      content: safeContent,
+      summary: buildPostSummary(safeContent),
+      record_date: safeRecordDate,
+      created_at: nowIso(),
+    },
+  });
+
+  return fetchPersonData(env, { owner, page: 1, perPage: 15 });
+}
+
+export async function updatePost(env, { postId, owner = "you", content, recordDate }) {
+  getRequiredSupabaseEnv(env);
+  const safePostId = Number(postId);
+  const safeContent = String(content || "").trim();
+  const safeRecordDate = String(recordDate || "").trim();
+  if (!safePostId || !safeContent || !safeRecordDate) {
+    throw new Error("Missing post fields");
+  }
+
+  const existing = await fetchPostOwner(env, safePostId);
+  if (!existing) throw new Error("Post not found");
+  if (existing.owner !== owner) throw new Error("No permission to edit this post");
+
+  await mutateRows(env, "posts", {
+    method: "PATCH",
+    params: {
+      id: `eq.${safePostId}`,
+    },
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: {
+      content: safeContent,
+      summary: buildPostSummary(safeContent),
+      record_date: safeRecordDate,
+    },
+  });
+
+  return fetchPersonData(env, { owner, page: 1, perPage: 15 });
+}
+
+export async function deletePostById(env, { postId, owner = "you" }) {
+  getRequiredSupabaseEnv(env);
+  const safePostId = Number(postId);
+  if (!safePostId) throw new Error("Invalid post id");
+
+  const existing = await fetchPostOwner(env, safePostId);
+  if (!existing) throw new Error("Post not found");
+  if (existing.owner !== owner) throw new Error("No permission to delete this post");
+
+  await mutateRows(env, "posts", {
+    method: "DELETE",
+    params: {
+      id: `eq.${safePostId}`,
+    },
+    headers: {
+      Prefer: "return=minimal",
+    },
+  });
+
+  return fetchPersonData(env, { owner, page: 1, perPage: 15 });
+}

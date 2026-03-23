@@ -121,6 +121,19 @@ export const boardPosts = [
   }
 ];
 
+export const personPayload = {
+  owner: "you",
+  ownerName: people.you,
+  isMyPage: true,
+  posts: boardPosts.filter((post) => post.owner === "you"),
+  pagination: {
+    page: 1,
+    perPage: 15,
+    totalPages: 1,
+    totalItems: boardPosts.filter((post) => post.owner === "you").length
+  }
+};
+
 export const homePayload = {
   dday: {
     title: "우리의 D-day",
