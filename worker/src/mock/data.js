@@ -92,20 +92,6 @@ export const notificationsPayload = {
   ]
 };
 
-export const backupPayload = {
-  exportedAt: "2026-03-23T00:00:00Z",
-  siteTitle: "강구현지원",
-  posts: boardPosts,
-  bucketItems: bucketPayload.items,
-  questions: qnaPayload.items,
-  notifications: notificationsPayload.items,
-  dday: {
-    title: homePayload.dday.title,
-    start_date: homePayload.dday.startDate,
-    target_date: homePayload.dday.targetDate,
-  },
-};
-
 export const homePayload = {
   dday: { title: "우리의 D-day", startDate: "2026-01-15", targetDate: "2026-05-01", label: "D-39", progress: { percent: 62, text: "62.0%" } },
   recentPosts,
@@ -130,3 +116,17 @@ export const homePayload = {
 };
 
 export const postsPayload = { items: boardPosts, pagination: { page: 1, perPage: 6, totalPages: 1, totalItems: 6 } };
+
+export const backupPayload = {
+  exportedAt: "2026-03-23T00:00:00Z",
+  siteTitle: "강구현지원",
+  posts: boardPosts,
+  bucketItems: bucketPayload.items,
+  questions: qnaPayload.items,
+  notifications: notificationsPayload.items,
+  dday: {
+    title: homePayload.dday.title,
+    start_date: homePayload.dday.startDate,
+    target_date: homePayload.dday.targetDate,
+  },
+};
