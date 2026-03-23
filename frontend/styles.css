@@ -748,6 +748,18 @@ pre {
     align-items: center;
   }
 
+  .grid-two > *,
+  .clock-grid > *,
+  .lower-grid > *,
+  .hero-head > *,
+  .hero-actions > * {
+    width: 100%;
+  }
+
+  .clock-grid > * {
+    min-width: 0;
+  }
+
   .mood-strip {
     grid-template-columns: 1fr;
   }
