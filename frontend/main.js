@@ -1,3 +1,5 @@
+﻿import { getJson } from "/src/api.js";
+
 const state = {
   session: null,
   home: null,
@@ -12,9 +14,8 @@ function logApi(label, payload) {
   apiLog.textContent = `${label}\n${JSON.stringify(payload, null, 2)}`;
 }
 
-async function getJson(url) {
-  const res = await fetch(url);
-  const data = await res.json();
+async function loadJson(url) {
+  const data = await getJson(url);
   logApi(`GET ${url}`, data);
   return data;
 }
@@ -139,9 +140,9 @@ function bindTabs() {
 async function boot() {
   try {
     const [session, home, posts] = await Promise.all([
-      getJson("/api/v1/session"),
-      getJson("/api/v1/home"),
-      getJson("/api/v1/posts"),
+      loadJson("/api/v1/session"),
+      loadJson("/api/v1/home"),
+      loadJson("/api/v1/posts"),
     ]);
     state.session = session;
     state.home = home;
@@ -158,7 +159,7 @@ async function boot() {
 
 document.getElementById("health-check")?.addEventListener("click", async () => {
   try {
-    const data = await getJson("/api/v1/health");
+    const data = await loadJson("/api/v1/health");
     statusStrip.textContent = `헬스 체크 완료: ${data.status}`;
   } catch (error) {
     statusStrip.textContent = `헬스 체크 실패: ${error instanceof Error ? error.message : String(error)}`;
