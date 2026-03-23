@@ -737,11 +737,26 @@ pre {
   .hero-actions,
   .grid-two,
   .clock-grid,
-  .row-between,
-  .section-head,
   .calendar-summary {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .section-head,
+  .row-between {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .mood-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .dday-card,
+  .clocks-card,
+  .mood-card,
+  .recent-card {
+    padding: 18px;
   }
 
   .top-tabs {
