@@ -92,6 +92,22 @@ h1 {
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
+.home-title-btn {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.home-title-btn:hover {
+  filter: none;
+  color: var(--accent);
+}
+
 .lead {
   color: var(--muted);
   line-height: 1.7;

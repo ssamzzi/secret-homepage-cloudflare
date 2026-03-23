@@ -323,6 +323,16 @@ function bindTabs() {
   });
 }
 
+function bindHomeTitleButton() {
+  const button = document.getElementById("home-title-btn");
+  if (!button || button.dataset.bound === "true") return;
+  button.dataset.bound = "true";
+  button.addEventListener("click", () => {
+    activateTab("home-panel");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
 function bindLoginForm() {
   const form = document.getElementById("login-form");
   if (!form || form.dataset.bound === "true") return;
@@ -861,6 +871,7 @@ async function boot() {
     bindLoginForm();
     bindIdentityButtons();
     bindLogoutButton();
+    bindHomeTitleButton();
     if (state.session.authenticated && state.session.currentUser) {
       await loadAppData();
     }
