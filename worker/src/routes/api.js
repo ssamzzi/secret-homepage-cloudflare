@@ -1,7 +1,7 @@
 ﻿import { json } from "../lib/responses.js";
 import { getRuntimeConfig } from "../lib/config.js";
 import { clearSessionSetCookie, createSessionSetCookie, readSession } from "../lib/session.js";
-import { bucketPayload, homePayload, people, personPayload, postsPayload, qnaPayload } from "../mock/data.js";
+import { backupPayload, bucketPayload, homePayload, notificationsPayload, people, personPayload, postsPayload, qnaPayload } from "../mock/data.js";
 import {
   clearAnswerByQuestionId,
   createBucketItem,
@@ -12,11 +12,14 @@ import {
   deletePostById,
   deleteQuestionById,
   editQuestionById,
+  exportBackupData,
   fetchBucketData,
   fetchHomeData,
+  fetchNotificationsData,
   fetchPersonData,
   fetchPostsData,
   fetchQnaData,
+  importBackupData,
   saveAnswerByQuestionId,
   saveComment,
   saveDday,
@@ -114,6 +117,29 @@ export async function handleApi(request, env) {
     catch (error) { return json({ error: "QNA_FETCH_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 
+  if (request.method === "GET" && url.pathname === "/api/v1/notifications") {
+    if (!useReal) return json({ ...notificationsPayload, mode: runtime.mode, runtime });
+    try { return json({ ...(await fetchNotificationsData(env, { actor: session.currentUser, limit: 100 })), mode: runtime.mode, runtime }); }
+    catch (error) { return json({ error: "NOTIFICATIONS_FETCH_FAILED", detail: String(error), runtime }, { status: 500 }); }
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/v1/backup/export") {
+    try {
+      const payload = useReal ? await exportBackupData(env) : backupPayload;
+      const content = JSON.stringify(payload, null, 2);
+      return new Response(content, {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "content-disposition": `attachment; filename=\"secret-homepage-backup-${new Date().toISOString().slice(0, 10)}.json\"`,
+          "cache-control": "no-store",
+        },
+      });
+    } catch (error) {
+      return json({ error: "BACKUP_EXPORT_FAILED", detail: String(error), runtime }, { status: 500 });
+    }
+  }
+
   const personCreateMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/person\/(you|partner)\/posts$/) : null;
   if (personCreateMatch) {
     try {
@@ -193,6 +219,19 @@ export async function handleApi(request, env) {
       if (!useReal) return json({ ok: true, saved: true, mode: runtime.mode, body });
       return json({ ok: true, saved: true, mode: runtime.mode, qna: await createQuestion(env, { actor: session.currentUser, question: body?.question }) });
     } catch (error) { return json({ error: "QNA_CREATE_FAILED", detail: String(error), runtime }, { status: 500 }); }
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/v1/backup/import") {
+    try {
+      if (!useReal) return json({ ok: true, restored: true, mode: runtime.mode });
+      const form = await request.formData();
+      const file = form.get("backup_file");
+      if (!file || typeof file === "string") return json({ error: "BACKUP_IMPORT_FAILED", detail: "백업 파일을 선택해주세요.", runtime }, { status: 400 });
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      await importBackupData(env, payload);
+      return json({ ok: true, restored: true, mode: runtime.mode });
+    } catch (error) { return json({ error: "BACKUP_IMPORT_FAILED", detail: String(error), runtime }, { status: 500 }); }
   }
 
   const questionEditMatch = request.method === "POST" ? url.pathname.match(/^\/api\/v1\/qna\/(\d+)\/edit$/) : null;

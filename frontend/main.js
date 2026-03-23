@@ -7,6 +7,7 @@ const state = {
   posts: null,
   bucket: null,
   qna: null,
+  notifications: null,
 };
 
 const apiLog = document.getElementById("api-log");
@@ -207,6 +208,27 @@ function renderQna() {
   bindQnaFilters();
 }
 
+function renderNotifications() {
+  if (!state.notifications) return;
+  const container = document.getElementById("notifications-list");
+  container.innerHTML = state.notifications.items.length
+    ? state.notifications.items
+        .map(
+          (item) => `
+            <article class="card notification-card">
+              <div class="row-between section-head compact">
+                <strong>${escapeHtml(item.message)}</strong>
+                <span class="muted small">${escapeHtml(item.createdAt || "")}</span>
+              </div>
+              <p class="muted small">${escapeHtml(currentPersonLabel(item.actor))} → ${escapeHtml(currentPersonLabel(item.target))}</p>
+              ${item.link ? `<a class="tiny-link-btn" href="${escapeHtml(item.link)}">바로 가기</a>` : ""}
+            </article>
+          `
+        )
+        .join("")
+    : '<article class="card"><p>알림이 없어요.</p></article>';
+}
+
 function bindTabs() {
   document.querySelectorAll("[data-tab-target]").forEach((button) => {
     if (button.dataset.bound === "true") return;
@@ -276,6 +298,7 @@ function bindLogoutButton() {
       state.posts = null;
       state.bucket = null;
       state.qna = null;
+      state.notifications = null;
       renderSession();
     } catch (error) {
       setStatus(`로그아웃 실패: ${error instanceof Error ? error.message : String(error)}`, true);
@@ -654,24 +677,52 @@ function bindQnaFilters() {
   });
 }
 
+function bindBackupImportForm() {
+  const form = document.getElementById("backup-import-form");
+  if (!form || form.dataset.bound === "true") return;
+  form.dataset.bound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!confirm("백업을 복원하면 현재 데이터가 교체됩니다. 계속할까요?")) return;
+    const submitButton = form.querySelector("button[type='submit']");
+    try {
+      if (submitButton) submitButton.disabled = true;
+      setStatus("백업 복원 중...");
+      const formData = new FormData(form);
+      await postForm("/api/v1/backup/import", formData);
+      await loadAppData();
+      setStatus("백업 복원을 완료했습니다.");
+      form.reset();
+    } catch (error) {
+      setStatus(`백업 복원 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
 async function loadAppData() {
-  const [home, person, posts, bucket, qna] = await Promise.all([
+  const [home, person, posts, bucket, qna, notifications] = await Promise.all([
     loadJson("/api/v1/home"),
     loadJson(`/api/v1/person/${state.session.currentUser}`),
     loadJson("/api/v1/posts"),
     loadJson("/api/v1/bucket"),
     loadJson("/api/v1/qna"),
+    loadJson("/api/v1/notifications"),
   ]);
   state.home = home;
   state.person = person;
   state.posts = posts;
   state.bucket = bucket;
   state.qna = qna;
+  state.notifications = notifications;
   renderHome();
   renderPerson();
   renderBoard();
   renderBucket();
   renderQna();
+  renderNotifications();
+  bindBackupImportForm();
 }
 
 async function boot() {

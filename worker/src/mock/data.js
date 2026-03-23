@@ -85,6 +85,27 @@ export const qnaPayload = {
   pagination: { page: 1, perPage: 15, totalPages: 1, totalItems: 2 }
 };
 
+export const notificationsPayload = {
+  items: [
+    { id: 11, eventType: "new_post", actor: "you", target: "partner", message: "구현님이 새 기록을 남겼어요.", link: "#board-panel", createdAt: "2026-03-22T14:10:00Z", seenAt: null },
+    { id: 10, eventType: "qna_answered", actor: "partner", target: "you", message: "지원님이 질문에 답했어요.", link: "#qna-panel", createdAt: "2026-03-21T23:00:00Z", seenAt: "2026-03-22T00:00:00Z" }
+  ]
+};
+
+export const backupPayload = {
+  exportedAt: "2026-03-23T00:00:00Z",
+  siteTitle: "강구현지원",
+  posts: boardPosts,
+  bucketItems: bucketPayload.items,
+  questions: qnaPayload.items,
+  notifications: notificationsPayload.items,
+  dday: {
+    title: homePayload.dday.title,
+    start_date: homePayload.dday.startDate,
+    target_date: homePayload.dday.targetDate,
+  },
+};
+
 export const homePayload = {
   dday: { title: "우리의 D-day", startDate: "2026-01-15", targetDate: "2026-05-01", label: "D-39", progress: { percent: 62, text: "62.0%" } },
   recentPosts,

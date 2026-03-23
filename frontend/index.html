@@ -47,6 +47,8 @@
           <button class="tab-btn" type="button" data-tab-target="board-panel">우리의 일상들</button>
           <button class="tab-btn" type="button" data-tab-target="bucket-panel">버킷리스트</button>
           <button class="tab-btn" type="button" data-tab-target="qna-panel">궁금해!</button>
+          <button class="tab-btn" type="button" data-tab-target="notifications-panel">알림</button>
+          <button class="tab-btn" type="button" data-tab-target="backup-panel">백업</button>
           <button class="tab-btn ghost" type="button" id="health-check">API 확인</button>
         </nav>
 
@@ -146,6 +148,36 @@
             </div>
           </article>
           <section class="stack-list" id="qna-items"></section>
+        </section>
+
+        <section class="panel" id="notifications-panel">
+          <article class="card panel-head">
+            <div class="row-between section-head"><h2>알림</h2><span class="pill alt">Notify</span></div>
+            <p class="lead small">확인한 알림은 하루가 지나면 정리됩니다.</p>
+          </article>
+          <section class="stack-list" id="notifications-list"></section>
+        </section>
+
+        <section class="panel" id="backup-panel">
+          <article class="card panel-head">
+            <div class="row-between section-head"><h2>백업</h2><span class="pill alt">Backup</span></div>
+            <p class="lead small">현재 데이터를 JSON으로 내려받거나, 백업 파일로 전체 복원할 수 있어요.</p>
+          </article>
+          <div class="grid-two">
+            <section class="card compose-card">
+              <h3>백업 다운로드</h3>
+              <p class="muted">지금 상태를 파일로 저장해둘 수 있습니다.</p>
+              <a class="mini-action" id="backup-export-link" href="/api/v1/backup/export">지금 다운로드</a>
+            </section>
+            <section class="card compose-card">
+              <h3>백업 복원</h3>
+              <p class="muted">복원하면 현재 데이터가 백업 파일 내용으로 바뀝니다.</p>
+              <form id="backup-import-form" class="stack-form" enctype="multipart/form-data">
+                <label><span>백업 파일</span><input type="file" name="backup_file" accept="application/json,.json" required /></label>
+                <button type="submit">백업 복원 실행</button>
+              </form>
+            </section>
+          </div>
         </section>
 
         <section class="card api-log-card"><details><summary class="api-log-summary"><span>API 로그</span><span class="muted small">필요할 때만 보기</span></summary><pre id="api-log">아직 실행된 요청이 없습니다.</pre></details></section>

@@ -107,6 +107,19 @@ function paginate(items, page = 1, perPage = 15) {
   };
 }
 
+function normalizeNotificationItem(item) {
+  return {
+    id: item.id,
+    eventType: item.event_type,
+    actor: item.actor,
+    target: item.target,
+    message: item.message,
+    link: item.link,
+    createdAt: item.created_at,
+    seenAt: item.seen_at,
+  };
+}
+
 function normalizePostItem(post, commentsMap, imagesMap, now = Date.now()) {
   return {
     id: post.id,
@@ -226,6 +239,221 @@ export async function fetchQnaData(env, { actor, scopeFilter = "all", progressFi
   });
   const paged = paginate(filtered, page, perPage);
   return { items: paged.items, scopeFilter, progressFilter, pagination: paged.pagination };
+}
+
+export async function fetchNotificationsData(env, { actor, limit = 100 } = {}) {
+  getRequiredSupabaseEnv(env);
+  const seenThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  await mutateRows(env, "notifications", {
+    method: "DELETE",
+    params: { target: `eq.${actor}`, seen_at: `lt.${seenThreshold}` },
+    headers: { Prefer: "return=minimal" },
+  });
+  await mutateRows(env, "notifications", {
+    method: "PATCH",
+    params: { target: `eq.${actor}`, seen_at: "is.null" },
+    headers: { Prefer: "return=minimal" },
+    body: { seen_at: nowIso() },
+  });
+  const result = await fetchRows(env, "notifications", {
+    params: { select: "id,event_type,actor,target,message,link,created_at,seen_at", target: `eq.${actor}`, order: "id.desc", limit },
+  });
+  return { items: (result.data || []).map(normalizeNotificationItem) };
+}
+
+export async function exportBackupData(env) {
+  getRequiredSupabaseEnv(env);
+  const [postsResult, bucketResult, qnaResult, notificationResult, ddayResult] = await Promise.all([
+    fetchRows(env, "posts", { params: { select: "id,owner,content,summary,record_date,created_at", order: "id.asc", limit: 2000 } }),
+    fetchRows(env, "bucket_items", { params: { select: "id,owner,content,is_done,created_at", order: "id.asc", limit: 2000 } }),
+    fetchRows(env, "qna", { params: { select: "id,author,target,question,answer,answered_by,created_at,answered_at", order: "id.asc", limit: 2000 } }),
+    fetchRows(env, "notifications", { params: { select: "id,event_type,actor,target,message,link,created_at,seen_at", order: "id.asc", limit: 4000 } }),
+    fetchRows(env, "dday_settings", { params: { select: "title,start_date,target_date", id: "eq.1", limit: 1 } }),
+  ]);
+
+  const posts = postsResult.data || [];
+  const { commentsMap, imagesMap } = await fetchRelatedForPosts(env, posts);
+
+  return {
+    exported_at: nowIso(),
+    site_title: "강구현지원",
+    posts: posts.map((post) => ({
+      id: post.id,
+      owner: post.owner,
+      content: post.content,
+      summary: post.summary,
+      record_date: post.record_date,
+      created_at: post.created_at,
+      images: (imagesMap[String(post.id)] || []).map((item) => item.image_path),
+      comments: (commentsMap[String(post.id)] || []).map((item) => ({
+        id: item.id,
+        author: item.author,
+        content: item.content,
+        created_at: item.created_at,
+      })),
+    })),
+    bucket_items: (bucketResult.data || []).map((item) => ({
+      id: item.id,
+      owner: item.owner,
+      content: item.content,
+      is_done: Boolean(item.is_done),
+      created_at: item.created_at,
+    })),
+    questions: (qnaResult.data || []).map((item) => ({
+      id: item.id,
+      author: item.author,
+      target: item.target,
+      question: item.question,
+      answer: item.answer,
+      answered_by: item.answered_by,
+      created_at: item.created_at,
+      answered_at: item.answered_at,
+    })),
+    notifications: (notificationResult.data || []).map((item) => ({
+      id: item.id,
+      event_type: item.event_type,
+      actor: item.actor,
+      target: item.target,
+      message: item.message,
+      link: item.link,
+      created_at: item.created_at,
+      seen_at: item.seen_at,
+    })),
+    dday: ddayResult.data?.[0] || null,
+  };
+}
+
+async function clearTable(env, table) {
+  await mutateRows(env, table, {
+    method: "DELETE",
+    params: { id: "gt.0" },
+    headers: { Prefer: "return=minimal" },
+  });
+}
+
+export async function importBackupData(env, payload) {
+  getRequiredSupabaseEnv(env);
+  const posts = Array.isArray(payload?.posts) ? payload.posts : [];
+  const bucketItems = Array.isArray(payload?.bucket_items) ? payload.bucket_items : [];
+  const questions = Array.isArray(payload?.questions) ? payload.questions : [];
+  const notifications = Array.isArray(payload?.notifications) ? payload.notifications : [];
+  const dday = payload?.dday || null;
+
+  await clearTable(env, "comments");
+  await clearTable(env, "posts_images");
+  await clearTable(env, "posts");
+  await clearTable(env, "bucket_items");
+  await clearTable(env, "qna");
+  await clearTable(env, "notifications");
+  await mutateRows(env, "dday_settings", {
+    method: "DELETE",
+    params: { id: "eq.1" },
+    headers: { Prefer: "return=minimal" },
+  });
+
+  if (dday) {
+    await mutateRows(env, "dday_settings", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: {
+        id: 1,
+        title: dday.title,
+        start_date: dday.start_date,
+        target_date: dday.target_date,
+        updated_at: nowIso(),
+      },
+    });
+  }
+
+  if (posts.length) {
+    await mutateRows(env, "posts", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: posts.map((post) => ({
+        id: post.id,
+        owner: post.owner,
+        content: post.content,
+        summary: post.summary || buildPostSummary(post.content),
+        record_date: post.record_date,
+        created_at: post.created_at || nowIso(),
+      })),
+    });
+
+    const postImages = posts.flatMap((post) =>
+      (post.images || []).map((imagePath, index) => ({
+        post_id: post.id,
+        image_path: imagePath,
+        sort_order: index,
+        created_at: post.created_at || nowIso(),
+      }))
+    );
+    if (postImages.length) {
+      await mutateRows(env, "posts_images", { method: "POST", headers: { Prefer: "return=representation" }, body: postImages });
+    }
+
+    const comments = posts.flatMap((post) =>
+      (post.comments || []).map((comment) => ({
+        id: comment.id,
+        post_id: post.id,
+        author: comment.author,
+        content: comment.content,
+        created_at: comment.created_at || nowIso(),
+      }))
+    );
+    if (comments.length) {
+      await mutateRows(env, "comments", { method: "POST", headers: { Prefer: "return=representation" }, body: comments });
+    }
+  }
+
+  if (bucketItems.length) {
+    await mutateRows(env, "bucket_items", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: bucketItems.map((item) => ({
+        id: item.id,
+        owner: item.owner,
+        content: item.content,
+        is_done: Boolean(item.is_done),
+        created_at: item.created_at || nowIso(),
+      })),
+    });
+  }
+
+  if (questions.length) {
+    await mutateRows(env, "qna", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: questions.map((item) => ({
+        id: item.id,
+        author: item.author,
+        target: item.target,
+        question: item.question,
+        answer: item.answer,
+        answered_by: item.answered_by,
+        created_at: item.created_at || nowIso(),
+        answered_at: item.answered_at,
+      })),
+    });
+  }
+
+  if (notifications.length) {
+    await mutateRows(env, "notifications", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: notifications.map((item) => ({
+        id: item.id,
+        event_type: item.event_type,
+        actor: item.actor,
+        target: item.target,
+        message: item.message,
+        link: item.link,
+        created_at: item.created_at || nowIso(),
+        seen_at: item.seen_at,
+      })),
+    });
+  }
+
+  return { ok: true };
 }
 
 export async function saveMood(env, { owner = "you", moodId }) {
