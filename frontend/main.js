@@ -10,6 +10,9 @@ const state = {
 const apiLog = document.getElementById("api-log");
 const statusStrip = document.getElementById("status-strip");
 const sessionChip = document.getElementById("session-chip");
+const loginPanel = document.getElementById("login-panel");
+const identityPanel = document.getElementById("identity-panel");
+const appContent = document.getElementById("app-content");
 let clocksStarted = false;
 
 function logApi(label, payload) {
@@ -28,6 +31,12 @@ async function postJson(url, body) {
   const data = await sendJson(url, { method: "POST", body });
   logApi(`POST ${url}`, data);
   return data;
+}
+
+function showAppStage(stage) {
+  loginPanel.hidden = stage !== "login";
+  identityPanel.hidden = stage !== "identity";
+  appContent.hidden = stage !== "app";
 }
 
 function renderClock(targetId, tz) {
@@ -60,10 +69,24 @@ function setStatus(message, isError = false) {
 
 function renderSession() {
   if (!state.session) return;
-  const { currentUser, people, mode } = state.session;
+  const { currentUser, people, mode, authenticated } = state.session;
+  document.getElementById("mood-mode-pill").textContent = mode.toUpperCase();
+
+  if (!authenticated) {
+    showAppStage("login");
+    setStatus("비밀번호를 입력하면 Cloudflare 버전에 들어갈 수 있습니다.");
+    return;
+  }
+
+  if (!currentUser) {
+    showAppStage("identity");
+    setStatus("지원/구현 중 현재 사용자를 먼저 선택해주세요.");
+    return;
+  }
+
+  showAppStage("app");
   sessionChip.textContent = `${people[currentUser]} · ${mode}`;
   setStatus(`세션 확인 완료. 현재 사용자는 ${people[currentUser]}이고, Cloudflare pilot은 ${mode} 모드로 동작 중입니다.`);
-  document.getElementById("mood-mode-pill").textContent = mode.toUpperCase();
 }
 
 function renderHome() {
@@ -124,7 +147,7 @@ function renderHome() {
 function renderPerson() {
   if (!state.person || !state.session) return;
   const { people } = state.session;
-  const { owner, ownerName, posts } = state.person;
+  const { ownerName, posts } = state.person;
 
   document.getElementById("person-title").textContent = `${ownerName} 페이지`;
   const recordDateInput = document.getElementById("person-record-date");
@@ -173,8 +196,8 @@ function renderPerson() {
     : '<article class="card"><p>아직 기록이 없어요.</p></article>';
 
   bindPersonCreateForm();
-  bindPostEditForms(owner);
-  bindPostDeleteButtons(owner);
+  bindPostEditForms();
+  bindPostDeleteButtons();
 }
 
 function renderBoard() {
@@ -222,6 +245,71 @@ function bindTabs() {
       button.classList.add("active");
       document.getElementById(button.dataset.tabTarget)?.classList.add("active");
     });
+  });
+}
+
+function bindLoginForm() {
+  const form = document.getElementById("login-form");
+  if (!form || form.dataset.bound === "true") return;
+  form.dataset.bound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const submitButton = form.querySelector("button[type='submit']");
+    try {
+      if (submitButton) submitButton.disabled = true;
+      setStatus("비밀번호 확인 중...");
+      const result = await postJson("/api/v1/login", {
+        password: String(formData.get("password") || ""),
+      });
+      state.session = result.session;
+      form.reset();
+      renderSession();
+    } catch (error) {
+      setStatus(`로그인 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
+function bindIdentityButtons() {
+  document.querySelectorAll("[data-identity]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        button.disabled = true;
+        setStatus("사용자 선택 중...");
+        const result = await postJson("/api/v1/whoami", { currentUser: button.dataset.identity });
+        state.session = result.session;
+        renderSession();
+        await loadAppData();
+      } catch (error) {
+        setStatus(`사용자 선택 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+}
+
+function bindLogoutButton() {
+  const button = document.getElementById("logout-btn");
+  if (!button || button.dataset.bound === "true") return;
+  button.dataset.bound = "true";
+  button.addEventListener("click", async () => {
+    try {
+      button.disabled = true;
+      await postJson("/api/v1/logout", {});
+      state.session = await loadJson("/api/v1/session");
+      state.home = null;
+      state.person = null;
+      state.posts = null;
+      renderSession();
+    } catch (error) {
+      setStatus(`로그아웃 실패: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 
@@ -302,7 +390,7 @@ function bindPersonCreateForm() {
   });
 }
 
-function bindPostEditForms(owner) {
+function bindPostEditForms() {
   document.querySelectorAll(".post-edit-form").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -329,7 +417,7 @@ function bindPostEditForms(owner) {
   });
 }
 
-function bindPostDeleteButtons(owner) {
+function bindPostDeleteButtons() {
   document.querySelectorAll("[data-delete-post-id]").forEach((button) => {
     button.addEventListener("click", async () => {
       const ok = confirm("이 기록을 삭제할까요?");
@@ -375,22 +463,30 @@ function bindCommentForms() {
   });
 }
 
+async function loadAppData() {
+  const [home, person, posts] = await Promise.all([
+    loadJson("/api/v1/home"),
+    loadJson(`/api/v1/person/${state.session.currentUser}`),
+    loadJson("/api/v1/posts"),
+  ]);
+  state.home = home;
+  state.person = person;
+  state.posts = posts;
+  renderHome();
+  renderPerson();
+  renderBoard();
+}
+
 async function boot() {
   try {
-    const session = await loadJson("/api/v1/session");
-    state.session = session;
-    const [home, person, posts] = await Promise.all([
-      loadJson("/api/v1/home"),
-      loadJson(`/api/v1/person/${session.currentUser}`),
-      loadJson("/api/v1/posts"),
-    ]);
-    state.home = home;
-    state.person = person;
-    state.posts = posts;
+    state.session = await loadJson("/api/v1/session");
     renderSession();
-    renderHome();
-    renderPerson();
-    renderBoard();
+    bindLoginForm();
+    bindIdentityButtons();
+    bindLogoutButton();
+    if (state.session.authenticated && state.session.currentUser) {
+      await loadAppData();
+    }
     startClocks();
   } catch (error) {
     setStatus(`초기 로딩 실패: ${error instanceof Error ? error.message : String(error)}`, true);
