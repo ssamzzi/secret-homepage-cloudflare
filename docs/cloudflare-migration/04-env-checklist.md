@@ -46,3 +46,9 @@ Why:
 3. switch to `real` mode only after env values are ready
 4. compare Home and Board outputs side by side
 5. continue with login and write actions after read parity is confirmed
+
+## Supabase REST path (current recommended path)
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+
+If direct Postgres credentials are not available safely, use Supabase REST from the Worker first.
