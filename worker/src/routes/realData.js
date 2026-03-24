@@ -29,6 +29,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function otherPerson(actor) {
+  return actor === "you" ? "partner" : "you";
+}
+
 function buildPostSummary(content) {
   const cleaned = String(content || "").replace(/\s+/g, " ").trim();
   if (cleaned.length <= 120) return cleaned;
@@ -163,6 +167,21 @@ async function fetchCommentById(env, commentId) {
 async function fetchQuestionById(env, questionId) {
   const result = await fetchRows(env, "qna", { params: { select: "id,author,target,question,answer,answered_by,created_at,answered_at", id: `eq.${Number(questionId)}`, limit: 1 } });
   return result.data?.[0] || null;
+}
+
+async function createNotification(env, { eventType, actor, target, message, link = null }) {
+  await mutateRows(env, "notifications", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: {
+      event_type: eventType,
+      actor,
+      target,
+      message,
+      link,
+      created_at: nowIso(),
+    },
+  });
 }
 
 export async function fetchHomeData(env, monthText) {
@@ -551,6 +570,15 @@ export async function createPost(env, { owner = "you", content, recordDate, imag
       })),
     });
   }
+  if (post?.id) {
+    await createNotification(env, {
+      eventType: "post_created",
+      actor: owner,
+      target: otherPerson(owner),
+      message: `${people[owner]}이 새 글을 올렸어요.`,
+      link: `/board#post-${post.id}`,
+    });
+  }
   return fetchPersonData(env, { owner, page: 1, perPage: 6 });
 }
 
@@ -583,6 +611,13 @@ export async function createBucketItem(env, { owner, content }) {
   const safeContent = String(content || "").trim();
   if (!safeContent) throw new Error("Missing bucket content");
   await mutateRows(env, "bucket_items", { method: "POST", headers: { Prefer: "return=representation" }, body: { owner, content: safeContent, created_at: nowIso() } });
+  await createNotification(env, {
+    eventType: "bucket_created",
+    actor: owner,
+    target: otherPerson(owner),
+    message: `${people[owner]}이 버킷리스트를 추가했어요.`,
+    link: "/bucket",
+  });
   return fetchBucketData(env, { actor: owner, page: 1, perPage: 6 });
 }
 
@@ -607,6 +642,13 @@ export async function createQuestion(env, { actor, question }) {
   if (!safeQuestion) throw new Error("Missing question");
   const target = actor === "you" ? "partner" : "you";
   await mutateRows(env, "qna", { method: "POST", headers: { Prefer: "return=representation" }, body: { author: actor, target, question: safeQuestion, created_at: nowIso() } });
+  await createNotification(env, {
+    eventType: "qna_question",
+    actor,
+    target,
+    message: `${people[actor]}이 질문을 남겼어요.`,
+    link: "/qna",
+  });
   return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
 
@@ -638,6 +680,13 @@ export async function saveAnswerByQuestionId(env, { questionId, actor, answer })
   if (!existing) throw new Error("Question not found");
   if (existing.target !== actor && existing.answered_by !== actor) throw new Error("No permission to answer this question");
   await mutateRows(env, "qna", { method: "PATCH", params: { id: `eq.${Number(questionId)}` }, headers: { Prefer: "return=representation" }, body: { answer: safeAnswer, answered_by: actor, answered_at: nowIso() } });
+  await createNotification(env, {
+    eventType: "qna_answered",
+    actor,
+    target: existing.author,
+    message: `${people[actor]}이 질문에 답했어요.`,
+    link: "/qna",
+  });
   return fetchQnaData(env, { actor, page: 1, perPage: 6 });
 }
 
