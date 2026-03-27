@@ -254,12 +254,12 @@ function renderHome() {
 function renderPerson() {
   if (!state.person) return;
   const { ownerName, posts, pagination } = state.person;
-  document.getElementById("person-title").textContent = `${ownerName} 페이지`;
+  document.getElementById("person-title").textContent = `${ownerName}의 하루`;
   const recordDateInput = document.getElementById("person-record-date");
   if (recordDateInput && !recordDateInput.value) recordDateInput.value = new Date().toISOString().slice(0, 10);
 
   document.getElementById("person-posts").innerHTML = posts.length
-    ? posts.map((post) => `<article class="card person-post-card"><div class="row-between section-head compact"><strong>${escapeHtml(ownerName)} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<p class="post-content">${escapeHtml(post.content)}</p><details class="editor-box person-edit-box"><summary>수정</summary><form class="stack-form post-edit-form" data-post-id="${post.id}"><label><span>기록 날짜</span><input type="date" name="recordDate" value="${escapeHtml(post.recordDate)}" required /></label><label><span>내용</span><textarea name="content" rows="4" required>${escapeHtml(post.content)}</textarea></label><button type="submit">수정 저장</button></form></details><div class="post-actions"><button type="button" class="danger-btn" data-delete-post-id="${post.id}">삭제</button></div></article>`).join("")
+    ? posts.map((post) => `<article class="card person-post-card"><div class="row-between section-head compact"><strong>${escapeHtml(ownerName)} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<p class="post-content">${escapeHtml(post.content)}</p><details class="editor-box person-edit-box"><summary>조금 고치기</summary><form class="stack-form post-edit-form" data-post-id="${post.id}"><label><span>기록 날짜</span><input type="date" name="recordDate" value="${escapeHtml(post.recordDate)}" required /></label><label><span>내용</span><textarea name="content" rows="4" required>${escapeHtml(post.content)}</textarea></label><button type="submit">수정 저장</button></form></details><div class="post-actions"><button type="button" class="danger-btn" data-delete-post-id="${post.id}">삭제</button></div></article>`).join("")
     : '<article class="card"><p>아직 기록이 없어요.</p></article>';
 
   document.getElementById("person-pagination").innerHTML = renderPagination(pagination, "person-prev", "person-next");
@@ -277,7 +277,7 @@ function renderComment(comment) {
 function renderBoard() {
   if (!state.posts) return;
   const { items } = state.posts;
-  document.getElementById("board-grid").innerHTML = items.map((post) => `<article class="card post-card" id="post-${post.id}"><div class="row-between section-head compact"><strong>${escapeHtml(currentPersonLabel(post.owner))} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<div class="note"><p>${escapeHtml(post.content)}</p></div><section class="comments-box"><h3>댓글</h3><div class="comment-list">${post.comments.length ? post.comments.map(renderComment).join("") : '<p class="muted small">아직 댓글이 없어요.</p>'}</div><form class="comment-form" data-post-id="${post.id}"><textarea name="content" rows="3" placeholder="짧게 댓글 남기기"></textarea><button type="submit">댓글 남기기</button></form></section></article>`).join("");
+  document.getElementById("board-grid").innerHTML = items.map((post) => `<article class="card post-card" id="post-${post.id}"><div class="row-between section-head compact"><strong>${escapeHtml(currentPersonLabel(post.owner))} ${post.isNew ? '<span class="new-badge">NEW</span>' : ""}</strong><span class="muted small">${escapeHtml(post.recordDate)}</span></div>${post.images.length ? `<div class="image-stack">${post.images.map((src) => `<img src="${escapeHtml(src)}" alt="게시물 이미지" loading="lazy" />`).join("")}</div>` : ""}<div class="note"><p>${escapeHtml(post.content)}</p></div><section class="comments-box"><h3>댓글</h3><div class="comment-list">${post.comments.length ? post.comments.map(renderComment).join("") : '<p class="muted small">첫 마음을 남겨볼까요?</p>'}</div><form class="comment-form" data-post-id="${post.id}"><textarea name="content" rows="3" placeholder="짧게 댓글 남기기"></textarea><button type="submit">한마디 보내기</button></form></section></article>`).join("");
   document.getElementById("board-pagination").innerHTML = renderPagination(state.posts.pagination, "board-prev", "board-next");
   bindCommentForms();
   bindCommentTools();
@@ -308,7 +308,7 @@ function renderQna() {
     ? state.qna.items.map((item) => {
       const canEditQuestion = item.author === currentUser;
       const canAnswer = item.target === currentUser || item.answeredBy === currentUser;
-      return `<article class="card qna-card"><p><strong>${escapeHtml(people[item.author])}</strong> → <strong>${escapeHtml(people[item.target])}</strong></p><p class="qna-question">Q. ${escapeHtml(item.question)}</p>${canEditQuestion ? `<div class="qna-meta-row"><details class="editor-box"><summary>질문 수정</summary><form class="stack-form qna-edit-form" data-question-id="${item.id}"><textarea name="question" rows="2" required>${escapeHtml(item.question)}</textarea><button type="submit">수정 저장</button></form></details><button type="button" class="tiny-link-btn danger-link" data-qna-delete-id="${item.id}">질문 삭제</button></div>` : ""}${item.answer ? `<p class="qna-answer">A. ${escapeHtml(item.answer)}</p>${canAnswer ? `<div class="qna-meta-row"><details class="editor-box"><summary>답변 수정</summary><form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" required>${escapeHtml(item.answer)}</textarea><button type="submit">답변 저장</button></form></details><button type="button" class="tiny-link-btn danger-link" data-answer-delete-id="${item.id}">답변 삭제</button></div>` : ""}` : `${item.target === currentUser ? `<form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" placeholder="답변을 적어주세요" required></textarea><button type="submit">답변 등록</button></form>` : '<p class="muted small">상대방의 답변을 기다리는 중...</p>'}`}</article>`;
+      return `<article class="card qna-card"><p><strong>${escapeHtml(people[item.author])}</strong> → <strong>${escapeHtml(people[item.target])}</strong></p><p class="qna-question">Q. ${escapeHtml(item.question)}</p>${canEditQuestion ? `<div class="qna-meta-row"><details class="editor-box"><summary>질문 수정</summary><form class="stack-form qna-edit-form" data-question-id="${item.id}"><textarea name="question" rows="2" required>${escapeHtml(item.question)}</textarea><button type="submit">수정 저장</button></form></details><button type="button" class="tiny-link-btn danger-link" data-qna-delete-id="${item.id}">질문 삭제</button></div>` : ""}${item.answer ? `<p class="qna-answer">A. ${escapeHtml(item.answer)}</p>${canAnswer ? `<div class="qna-meta-row"><details class="editor-box"><summary>답변 수정</summary><form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" required>${escapeHtml(item.answer)}</textarea><button type="submit">답변 저장</button></form></details><button type="button" class="tiny-link-btn danger-link" data-answer-delete-id="${item.id}">답변 삭제</button></div>` : ""}` : `${item.target === currentUser ? `<form class="stack-form qna-answer-form" data-question-id="${item.id}"><textarea name="answer" rows="2" placeholder="답변을 적어주세요" required></textarea><button type="submit">답변 등록</button></form>` : '<p class="muted small">천천히 답이 오고 있어요...</p>'}`}</article>`;
     }).join("")
     : '<article class="card"><p>아직 질문이 없어요.</p></article>';
 
@@ -332,12 +332,12 @@ function renderNotifications() {
                 <span class="muted small">${escapeHtml(formatShortDateTime(item.createdAt || ""))}</span>
               </div>
               <p class="muted small">${escapeHtml(currentPersonLabel(item.actor))} → ${escapeHtml(currentPersonLabel(item.target))}</p>
-              ${item.link ? `<button type="button" class="tiny-link-btn" data-notification-link="${escapeHtml(item.link)}">바로 가기</button>` : ""}
+              ${item.link ? `<button type="button" class="tiny-link-btn" data-notification-link="${escapeHtml(item.link)}">보러 가기</button>` : ""}
             </article>
           `
         )
         .join("")
-    : '<article class="card"><p>알림이 없어요.</p></article>';
+    : '<article class="card"><p>아직 도착한 소식이 없어요.</p></article>';
   bindNotificationLinks();
 }
 
@@ -471,7 +471,7 @@ function bindDdayForm() {
       state.home = (await postJson("/api/v1/dday", { title: String(formData.get("title") || "").trim(), startDate: String(formData.get("startDate") || ""), targetDate: String(formData.get("targetDate") || "") })).home;
       renderHome();
       document.getElementById("dday-editor")?.removeAttribute("open");
-      setStatus("D-day 설정을 저장했습니다.");
+      setStatus("우리의 날짜를 다시 맞춰뒀어요.");
     } catch (error) {
       setStatus(`D-day 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
     } finally {
@@ -497,7 +497,7 @@ function bindPersonCreateForm() {
       form.reset();
       if (filesInput) filesInput.value = "";
       document.getElementById("person-record-date").value = new Date().toISOString().slice(0, 10);
-      setStatus("기록을 저장했습니다.");
+      setStatus("오늘의 하루를 잘 담아뒀어요.");
     } catch (error) {
       setStatus(`기록 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
     } finally {
@@ -518,7 +518,7 @@ function bindPostEditForms() {
         await postJson(`/api/v1/posts/${form.dataset.postId}/edit`, { recordDate: String(formData.get("recordDate") || ""), content: String(formData.get("content") || "").trim() });
         await loadPersonPage(state.person?.pagination?.page || 1);
         await loadBoardPage(state.posts?.pagination?.page || 1);
-        setStatus("글을 수정했습니다.");
+        setStatus("기록을 조금 더 예쁘게 고쳐뒀어요.");
       } catch (error) {
         setStatus(`글 수정 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
@@ -561,7 +561,7 @@ function bindCommentForms() {
         setStatus("댓글 저장 중...");
         await postJson(`/api/v1/posts/${form.dataset.postId}/comments`, { content });
         await loadBoardPage(state.posts?.pagination?.page || 1);
-        setStatus("댓글을 저장했습니다.");
+        setStatus("한마디가 잘 전해졌어요.");
       } catch (error) {
         setStatus(`댓글 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
       } finally {
@@ -637,7 +637,7 @@ function bindBucketForm() {
       await postJson("/api/v1/bucket", { content: String(formData.get("content") || "").trim() });
       await loadBucketPage(1);
       form.reset();
-      setStatus("버킷리스트를 추가했습니다.");
+      setStatus("함께 하고 싶은 일을 붙여뒀어요.");
     } catch (error) {
       setStatus(`버킷리스트 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
     } finally {
@@ -708,7 +708,7 @@ function bindQnaForm() {
       await postJson("/api/v1/qna", { question: String(formData.get("question") || "").trim() });
       await loadQnaPage(1);
       form.reset();
-      setStatus("질문을 등록했습니다.");
+      setStatus("궁금한 마음을 살짝 남겨뒀어요.");
     } catch (error) {
       setStatus(`질문 저장 실패: ${error instanceof Error ? error.message : String(error)}`, true);
     } finally {

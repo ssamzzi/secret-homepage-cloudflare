@@ -13,7 +13,7 @@
         <p class="lead small">우리가 만난 날.</p>
         <form id="login-form" class="stack-form">
           <label><span>사이트 비밀번호</span><input type="password" name="password" id="login-password" required /></label>
-          <button type="submit">입장하기</button>
+          <button type="submit">우리의 공간으로</button>
         </form>
       </section>
 
@@ -40,11 +40,11 @@
           </div>
           <nav class="top-tabs">
             <button class="tab-btn active" type="button" data-tab-target="home-panel">홈</button>
-            <button class="tab-btn" type="button" data-tab-target="person-panel">내 기록</button>
+            <button class="tab-btn" type="button" data-tab-target="person-panel">내 하루</button>
             <button class="tab-btn" type="button" data-tab-target="board-panel">우리의 일상들</button>
             <button class="tab-btn" type="button" data-tab-target="bucket-panel">버킷리스트</button>
             <button class="tab-btn" type="button" data-tab-target="qna-panel">궁금해!</button>
-            <button class="tab-btn" type="button" data-tab-target="notifications-panel">알림</button>
+            <button class="tab-btn" type="button" data-tab-target="notifications-panel">네 소식</button>
             <button class="tab-btn" type="button" data-tab-target="backup-panel">백업</button>
           </nav>
         </header>
@@ -62,7 +62,7 @@
                 <div class="progress-bar"><span id="dday-progress-bar" style="width: 0%"></span></div>
               </div>
               <details class="editor-box" id="dday-editor">
-                <summary>D-day 설정 수정</summary>
+                <summary>D-day 다시 적기</summary>
                 <form id="dday-form" class="stack-form">
                   <label><span>제목</span><input type="text" name="title" id="dday-form-title" required /></label>
                   <label><span>시작일</span><input type="date" name="startDate" id="dday-form-start" required /></label>
@@ -99,14 +99,14 @@
         </section>
 
         <section class="panel" id="person-panel">
-          <article class="card person-head"><div class="row-between section-head"><h2 id="person-title">내 기록</h2><span class="pill alt">기록</span></div><p class="lead small">사진과 함께 오늘의 기록을 남기고, 나중에 다시 꺼내볼 수 있게 정리합니다.</p></article>
+          <article class="card person-head"><div class="row-between section-head"><h2 id="person-title">내 하루</h2><span class="pill alt">기록</span></div><p class="lead small">오늘의 장면과 마음을 천천히 적어두는 곳이에요.</p></article>
           <article class="card compose-card">
             <form id="person-post-form" class="stack-form" enctype="multipart/form-data">
               <label><span>기록 날짜</span><input type="date" name="recordDate" id="person-record-date" required /></label>
               <label><span>내용</span><textarea name="content" id="person-content" rows="5" placeholder="오늘의 하루를 적어주세요" required></textarea></label>
               <label><span>사진</span><input type="file" name="images" id="person-images" accept="image/*" multiple /></label>
-              <p class="muted small">여러 장을 한 번에 올릴 수 있어요.</p>
-              <button type="submit">기록 저장</button>
+              <p class="muted small">오늘의 장면들을 여러 장 같이 남길 수 있어요.</p>
+              <button type="submit">오늘 남기기</button>
             </form>
           </article>
           <section class="stack-list" id="person-posts"></section>
@@ -114,20 +114,20 @@
         </section>
 
         <section class="panel" id="board-panel">
-          <article class="card board-head"><div class="row-between section-head"><h2>우리의 일상들</h2><span class="pill">페이지별 6개</span></div><p class="lead small">서로의 하루를 사진과 기록, 댓글로 이어서 쌓아가는 메인 공간입니다.</p></article>
+          <article class="card board-head"><div class="row-between section-head"><h2>우리의 일상들</h2><span class="pill">페이지별 6개</span></div><p class="lead small">멀리 있어도 서로의 오늘을 가장 가까이 느낄 수 있는 공간이에요.</p></article>
           <div class="board-grid" id="board-grid"></div>
           <div class="pagination-row" id="board-pagination"></div>
         </section>
 
         <section class="panel" id="bucket-panel">
-          <article class="card panel-head"><div class="row-between section-head"><h2>버킷리스트</h2><span class="pill alt">함께 하고 싶은 것</span></div><p class="lead small">같이 하고 싶은 일들을 적고 완료 상태를 관리합니다.</p></article>
+          <article class="card panel-head"><div class="row-between section-head"><h2>버킷리스트</h2><span class="pill alt">함께 하고 싶은 것</span></div><p class="lead small">같이 하고 싶은 순간들을 하나씩 붙여두는 곳이에요.</p></article>
           <article class="card compose-card">
             <form id="bucket-form" class="stack-form compact-form-inline">
-              <label><span>버킷 내용</span><input type="text" name="content" placeholder="예: 같이 바다 보러 가기" required /></label>
+              <label><span>같이 하고 싶은 일</span><input type="text" name="content" placeholder="예: 같이 바다 보러 가기" required /></label>
               <button type="submit">추가</button>
             </form>
             <div class="filter-row">
-              <label><span>작성자</span><select id="bucket-owner-filter"><option value="all">전체</option><option value="me">내 항목</option><option value="partner">상대 항목</option></select></label>
+              <label><span>남긴 사람</span><select id="bucket-owner-filter"><option value="all">전체</option><option value="me">내 항목</option><option value="partner">상대 항목</option></select></label>
               <label><span>상태</span><select id="bucket-status-filter"><option value="all">전체</option><option value="open">미완료</option><option value="done">완료</option></select></label>
             </div>
           </article>
@@ -136,11 +136,11 @@
         </section>
 
         <section class="panel" id="qna-panel">
-          <article class="card panel-head"><div class="row-between section-head"><h2>궁금해!</h2><span class="pill alt">서로에게</span></div><p class="lead small">평소엔 못 물었던 질문도 가볍게 남기고, 천천히 답할 수 있는 공간입니다.</p></article>
+          <article class="card panel-head"><div class="row-between section-head"><h2>궁금해!</h2><span class="pill alt">서로에게</span></div><p class="lead small">문득 떠오른 궁금함을 살며시 남겨두는 공간이에요.</p></article>
           <article class="card compose-card">
             <form id="qna-form" class="stack-form">
-              <label><span>질문</span><textarea name="question" rows="3" placeholder="궁금한 질문을 적어주세요" required></textarea></label>
-              <button type="submit">질문 등록</button>
+              <label><span>질문</span><textarea name="question" rows="3" placeholder="살짝 물어보고 싶은 말을 적어주세요" required></textarea></label>
+              <button type="submit">질문 남기기</button>
             </form>
             <div class="filter-row">
               <label><span>범위</span><select id="qna-scope-filter"><option value="all">전체</option><option value="mine">내 질문</option><option value="for_me">내게 온 질문</option></select></label>
@@ -153,8 +153,8 @@
 
         <section class="panel" id="notifications-panel">
           <article class="card panel-head">
-            <div class="row-between section-head"><h2>알림</h2><span class="pill alt">새 소식</span></div>
-            <p class="lead small">확인한 알림은 하루가 지나면 정리됩니다.</p>
+            <div class="row-between section-head"><h2>네 소식</h2><span class="pill alt">새 소식</span></div>
+            <p class="lead small">읽은 소식은 하루 뒤에 자연스럽게 사라져요.</p>
           </article>
           <section class="stack-list" id="notifications-list"></section>
         </section>
