@@ -505,7 +505,23 @@ export async function saveMood(env, { owner = "you", moodId }) {
 export async function saveDday(env, { title, startDate, targetDate }) {
   getRequiredSupabaseEnv(env);
   if (!title || !startDate || !targetDate) throw new Error("Missing D-day fields");
-  await mutateRows(env, "dday_settings", { method: "POST", params: { on_conflict: "id" }, headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: [{ id: 1, title, start_date: startDate, target_date: targetDate, updated_at: nowIso() }] });
+  const payload = { title, start_date: startDate, target_date: targetDate, updated_at: nowIso() };
+  const updateResult = await mutateRows(env, "dday_settings", {
+    method: "PATCH",
+    params: { id: "eq.1" },
+    headers: { Prefer: "return=representation" },
+    body: payload,
+  });
+
+  if (!Array.isArray(updateResult.data) || updateResult.data.length === 0) {
+    await mutateRows(env, "dday_settings", {
+      method: "POST",
+      params: { on_conflict: "id" },
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: [{ id: 1, ...payload }],
+    });
+  }
+
   return fetchHomeData(env, "");
 }
 
