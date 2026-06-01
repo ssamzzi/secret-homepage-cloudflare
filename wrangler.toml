@@ -1,4 +1,4 @@
-name = "secret-homepage-api"
+name = "secret-homepage-cloudflare"
 main = "worker/src/index.js"
 compatibility_date = "2026-03-23"
 
